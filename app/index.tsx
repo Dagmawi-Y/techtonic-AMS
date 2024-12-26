@@ -34,8 +34,9 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[styles.content, { flex: 1 }]}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : -500}
       >
         <View style={styles.logoContainer}>
           <MaterialCommunityIcons name="school" size={80} color={COLORS.white} />

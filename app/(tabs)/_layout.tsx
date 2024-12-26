@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
-import { Platform } from 'react-native';
+import { Platform, Pressable } from 'react-native';
 
 export default function TabLayout() {
   return (
@@ -45,6 +45,9 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="view-dashboard" size={size} color={color} />
           ),
+          tabBarButton: (props) => (
+            <Pressable {...props} android_ripple={null} style={props.style} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -53,6 +56,9 @@ export default function TabLayout() {
           title: 'Batches',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account-group" size={size} color={color} />
+          ),
+          tabBarButton: (props) => (
+            <Pressable {...props} android_ripple={null} style={props.style} />
           ),
         }}
       />
@@ -63,6 +69,9 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="book-open-variant" size={size} color={color} />
           ),
+          tabBarButton: (props) => (
+            <Pressable {...props} android_ripple={null} style={props.style} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -71,6 +80,9 @@ export default function TabLayout() {
           title: 'Students',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account-multiple" size={size} color={color} />
+          ),
+          tabBarButton: (props) => (
+            <Pressable {...props} android_ripple={null} style={props.style} />
           ),
         }}
       />
@@ -81,6 +93,9 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="calendar-check" size={size} color={color} />
           ),
+          tabBarButton: (props) => (
+            <Pressable {...props} android_ripple={null} style={props.style} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -89,6 +104,9 @@ export default function TabLayout() {
           title: 'Reports',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="file-chart" size={size} color={color} />
+          ),
+          tabBarButton: (props) => (
+            <Pressable {...props} android_ripple={null} style={props.style} />
           ),
         }}
       />
