@@ -132,10 +132,16 @@ export default function DashboardScreen() {
         ))}
       </View>
 
-      <View style={styles.section}>
+      <View style={{...styles.section, marginBottom: '14%'}}>
         <Text style={styles.sectionTitle} bold>Quick Actions</Text>
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickActionButton}>
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => router.push({
+              pathname: '/students',
+              params: { action: 'add' }
+            })}
+          >
             <MaterialCommunityIcons
               name="account-plus"
               size={24}
@@ -143,13 +149,49 @@ export default function DashboardScreen() {
             />
             <Text style={styles.quickActionText} bold>Add Student</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionButton}>
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => router.push({
+              pathname: '/attendance',
+              params: { action: 'mark' }
+            })}
+          >
             <MaterialCommunityIcons
               name="calendar-plus"
               size={24}
               color={COLORS.white}
             />
             <Text style={styles.quickActionText} bold>Mark Attendance</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={[styles.quickActions, { marginTop: SPACING.md }]}>
+          <TouchableOpacity 
+            style={[styles.quickActionButton, { backgroundColor: COLORS.primary }]}
+            onPress={() => router.push({
+              pathname: '/batches',
+              params: { action: 'create' }
+            })}
+          >
+            <MaterialCommunityIcons
+              name="account-group"
+              size={24}
+              color={COLORS.white}
+            />
+            <Text style={styles.quickActionText} bold>Create Batch</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.quickActionButton, { backgroundColor: COLORS.primary }]}
+            onPress={() => router.push({
+              pathname: '/programs',
+              params: { action: 'create' }
+            })}
+          >
+            <MaterialCommunityIcons
+              name="book-open-variant"
+              size={24}
+              color={COLORS.white}
+            />
+            <Text style={styles.quickActionText} bold>Create Program</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -242,7 +284,6 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 14,
   },
   quickActionButton: {
     flex: 0.48,
@@ -252,6 +293,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
+    ...SHADOWS.small,
   },
   quickActionText: {
     color: COLORS.white,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
+import { useLocalSearchParams } from 'expo-router';
 
 interface Student {
   id: string;
@@ -42,9 +43,17 @@ const mockStudents: Student[] = [
 ];
 
 export default function StudentsScreen() {
+  const { action } = useLocalSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [isRegistrationModalVisible, setRegistrationModalVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+
+  useEffect(() => {
+    if (action === 'add') {
+      setSelectedStudent(null);
+      setRegistrationModalVisible(true);
+    }
+  }, [action]);
 
   const filteredStudents = mockStudents.filter(
     (student) =>

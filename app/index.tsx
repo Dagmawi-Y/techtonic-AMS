@@ -40,7 +40,7 @@ export default function LoginScreen() {
         <View style={styles.logoContainer}>
           <MaterialCommunityIcons name="school" size={80} color={COLORS.white} />
           <Text style={styles.title} bold>Techtonic Tribe</Text>     
-          <Text style={styles.subtitle}>Attendance Management System</Text>
+          <Text style={styles.subtitle}>Member Management Portal</Text>
         </View>
 
         <View style={styles.formContainer}>

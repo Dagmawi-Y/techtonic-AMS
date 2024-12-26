@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text } from '../../components';
+import { useLocalSearchParams } from 'expo-router';
 
 interface Student {
   id: string;
@@ -36,11 +37,18 @@ const mockStudents: Student[] = [
 ];
 
 export default function AttendanceScreen() {
+  const { action } = useLocalSearchParams();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBatch, setSelectedBatch] = useState('2024 Batch');
   const [selectedProgram, setSelectedProgram] = useState('Bootstrap Workshop');
   const [students, setStudents] = useState(mockStudents);
   const [isScannerVisible, setScannerVisible] = useState(false);
+
+  useEffect(() => {
+    if (action === 'mark') {
+      setScannerVisible(true);
+    }
+  }, [action]);
 
   const toggleAttendance = (studentId: string) => {
     setStudents(

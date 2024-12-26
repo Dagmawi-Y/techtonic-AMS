@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
+import { useLocalSearchParams } from 'expo-router';
 
 interface Batch {
   id: string;
@@ -38,8 +40,95 @@ const mockBatches: Batch[] = [
 ];
 
 export default function BatchesScreen() {
+  const { action } = useLocalSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
+  const [isCreateModalVisible, setCreateModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (action === 'create') {
+      setCreateModalVisible(true);
+    }
+  }, [action]);
+
+  const CreateBatchModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isCreateModalVisible}
+      onRequestClose={() => setCreateModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle} bold>Create New Batch</Text>
+            <TouchableOpacity
+              onPress={() => setCreateModalVisible(false)}
+            >
+              <MaterialCommunityIcons
+                name="close"
+                size={24}
+                color={COLORS.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalBody}>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Batch Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter batch name"
+                placeholderTextColor={COLORS.gray}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Start Date</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Select start date"
+                placeholderTextColor={COLORS.gray}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>End Date</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Select end date"
+                placeholderTextColor={COLORS.gray}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Programs</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Select programs"
+                placeholderTextColor={COLORS.gray}
+              />
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={() => setCreateModalVisible(false)}
+            >
+              <Text style={styles.buttonText} bold>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.saveButton]}
+              onPress={() => setCreateModalVisible(false)}
+            >
+              <Text style={styles.buttonText} bold>Create</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 
   const filteredBatches = mockBatches.filter((batch) =>
     batch.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -145,24 +234,21 @@ export default function BatchesScreen() {
             placeholderTextColor={COLORS.gray}
           />
         </View>
-        <TouchableOpacity style={styles.addButton}>
-          <MaterialCommunityIcons
-            name="plus"
-            size={24}
-            color={COLORS.white}
-          />
-          <Text style={styles.addButtonText} bold>Add Batch</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => setCreateModalVisible(true)}
+        >
+          <MaterialCommunityIcons name="plus" size={24} color={COLORS.white} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.batchList}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.batchList}>
         {filteredBatches.map((batch) => (
           <BatchCard key={batch.id} batch={batch} />
         ))}
       </ScrollView>
+
+      <CreateBatchModal />
     </View>
   );
 }
@@ -273,6 +359,72 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: COLORS.white,
     marginLeft: SPACING.sm,
+    fontSize: FONT_SIZES.md,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    width: '90%',
+    maxHeight: '80%',
+    borderRadius: BORDER_RADIUS.lg,
+    ...SHADOWS.medium,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.lightGray,
+  },
+  modalTitle: {
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.text,
+  },
+  modalBody: {
+    padding: SPACING.md,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.lightGray,
+  },
+  formGroup: {
+    marginBottom: SPACING.md,
+  },
+  label: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textLight,
+    marginBottom: SPACING.xs,
+  },
+  input: {
+    backgroundColor: COLORS.background,
+    padding: SPACING.sm,
+    borderRadius: BORDER_RADIUS.sm,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+  },
+  button: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.sm,
+    marginLeft: SPACING.sm,
+  },
+  cancelButton: {
+    backgroundColor: COLORS.lightGray,
+  },
+  saveButton: {
+    backgroundColor: COLORS.primary,
+  },
+  buttonText: {
+    color: COLORS.white,
     fontSize: FONT_SIZES.md,
   },
 }); 
