@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
+import { Platform } from 'react-native';
 
 export default function TabLayout() {
   return (
@@ -8,19 +9,33 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.gray,
-        tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: COLORS.border,
-          height: 60,
-          paddingBottom: 5,
-        },
+        tabBarStyle: Platform.select({
+          ios: {
+            borderTopWidth: 1,
+            borderTopColor: COLORS.border,
+            height: 60,
+            paddingBottom: 5,
+          },
+          android: {
+            borderTopWidth: 1,
+            borderTopColor: COLORS.border,
+            height: 60,
+            paddingBottom: 5,
+            elevation: 0,
+          },
+        }),
         headerStyle: {
           backgroundColor: COLORS.primary,
         },
         headerTintColor: COLORS.white,
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontFamily: 'Ubuntu-Bold',
         },
+        tabBarLabelStyle: {
+          fontFamily: 'Ubuntu-Medium',
+        },
+        tabBarShowLabel: true,
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen

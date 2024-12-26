@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  TextInput,
   Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import { Text, TextInput } from '../../components';
 
 interface Student {
   id: string;
@@ -63,7 +62,7 @@ export default function StudentsScreen() {
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
+            <Text style={styles.modalTitle} bold>
               {selectedStudent ? 'Edit Student' : 'Register New Student'}
             </Text>
             <TouchableOpacity
@@ -164,13 +163,13 @@ export default function StudentsScreen() {
               style={[styles.button, styles.cancelButton]}
               onPress={() => setRegistrationModalVisible(false)}
             >
-              <Text style={styles.buttonText}>Cancel</Text>
+              <Text style={styles.buttonText} bold>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.saveButton]}
               onPress={() => setRegistrationModalVisible(false)}
             >
-              <Text style={styles.buttonText}>
+              <Text style={styles.buttonText} bold>
                 {selectedStudent ? 'Update' : 'Register'}
               </Text>
             </TouchableOpacity>
@@ -184,7 +183,7 @@ export default function StudentsScreen() {
     <View style={styles.studentCard}>
       <View style={styles.studentInfo}>
         <View style={styles.studentHeader}>
-          <Text style={styles.studentName}>{student.name}</Text>
+          <Text style={styles.studentName} bold >{student.name}</Text>
           <Text style={styles.studentId}>ID: {student.id}</Text>
         </View>
         <View style={styles.studentDetails}>
@@ -270,7 +269,7 @@ export default function StudentsScreen() {
           }}
         >
           <MaterialCommunityIcons name="plus" size={24} color={COLORS.white} />
-          <Text style={styles.addButtonText}>Add Student</Text>
+          <Text style={styles.addButtonText} bold>Add Student</Text>
         </TouchableOpacity>
       </View>
 
@@ -324,7 +323,6 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     marginLeft: SPACING.sm,
     fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
   },
   studentList: {
     padding: SPACING.md,
@@ -347,7 +345,6 @@ const styles = StyleSheet.create({
   },
   studentName: {
     fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
     color: COLORS.text,
   },
   studentId: {
@@ -404,7 +401,6 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
     color: COLORS.text,
   },
   modalBody: {
@@ -458,6 +454,5 @@ const styles = StyleSheet.create({
   buttonText: {
     color: COLORS.white,
     fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
   },
 }); 

@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
+  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -13,6 +11,7 @@ import { router } from 'expo-router';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Text, TextInput } from '../components';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -39,7 +38,7 @@ export default function LoginScreen() {
       >
         <View style={styles.logoContainer}>
           <MaterialCommunityIcons name="school" size={80} color={COLORS.white} />
-          <Text style={styles.title}>Techtonic Club</Text>
+          <Text style={styles.title} bold>Techtonic Club</Text>
           <Text style={styles.subtitle}>Admin Portal</Text>
         </View>
 
@@ -71,7 +70,7 @@ export default function LoginScreen() {
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Login</Text>
+            <Text style={styles.loginButtonText} bold>Login</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -95,7 +94,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.xxxl,
     color: COLORS.white,
-    fontWeight: 'bold',
     marginTop: SPACING.md,
   },
   subtitle: {
@@ -141,6 +139,5 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: COLORS.white,
     fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
   },
 });

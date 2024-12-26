@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import { Text } from '../../components';
 
 interface AttendanceData {
   date: string;
@@ -96,7 +96,7 @@ export default function ReportsScreen() {
       >
         <View style={styles.reportHeader}>
           <View>
-            <Text style={styles.batchName}>{report.name}</Text>
+            <Text style={styles.batchName} bold>{report.name}</Text>
             <Text style={styles.programName}>{report.program}</Text>
           </View>
           <MaterialCommunityIcons
@@ -108,11 +108,11 @@ export default function ReportsScreen() {
 
         <View style={styles.reportSummary}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{totalSessions}</Text>
+            <Text style={styles.summaryValue} bold>{totalSessions}</Text>
             <Text style={styles.summaryLabel}>Sessions</Text>
           </View>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{averageAttendance}%</Text>
+            <Text style={styles.summaryValue} bold>{averageAttendance}%</Text>
             <Text style={styles.summaryLabel}>Attendance</Text>
           </View>
         </View>
@@ -120,10 +120,10 @@ export default function ReportsScreen() {
         {isSelected && (
           <View style={styles.detailedReport}>
             <View style={styles.reportTableHeader}>
-              <Text style={[styles.tableCell, styles.dateCell]}>Date</Text>
-              <Text style={styles.tableCell}>Present</Text>
-              <Text style={styles.tableCell}>Absent</Text>
-              <Text style={styles.tableCell}>%</Text>
+              <Text style={[styles.tableCell, styles.dateCell]} bold>Date</Text>
+              <Text style={styles.tableCell} bold>Present</Text>
+              <Text style={styles.tableCell} bold>Absent</Text>
+              <Text style={styles.tableCell} bold>%</Text>
             </View>
             {report.attendanceData.map((data, index) => (
               <View key={index} style={styles.reportTableRow}>
@@ -146,7 +146,7 @@ export default function ReportsScreen() {
                   size={20}
                   color={COLORS.white}
                 />
-                <Text style={styles.exportButtonText}>Export PDF</Text>
+                <Text style={styles.exportButtonText} bold>Export PDF</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.exportButton, styles.csvButton]}
@@ -156,7 +156,7 @@ export default function ReportsScreen() {
                   size={20}
                   color={COLORS.white}
                 />
-                <Text style={styles.exportButtonText}>Export CSV</Text>
+                <Text style={styles.exportButtonText} bold>Export CSV</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -168,7 +168,7 @@ export default function ReportsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Attendance Reports</Text>
+        <Text style={styles.title} bold>Attendance Reports</Text>
         <Text style={styles.subtitle}>
           View and export attendance reports by batch and program
         </Text>

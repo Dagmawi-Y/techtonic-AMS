@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -9,6 +8,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import { Text } from '../../components';
 
 interface Student {
   id: string;
@@ -69,7 +69,7 @@ export default function AttendanceScreen() {
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Scan Student ID</Text>
+            <Text style={styles.modalTitle} bold>Scan Student ID</Text>
             <TouchableOpacity onPress={() => setScannerVisible(false)}>
               <MaterialCommunityIcons
                 name="close"
@@ -99,7 +99,7 @@ export default function AttendanceScreen() {
   const AttendanceCard = ({ student }: { student: Student }) => (
     <View style={styles.attendanceCard}>
       <View style={styles.studentInfo}>
-        <Text style={styles.studentName}>{student.name}</Text>
+        <Text style={styles.studentName} bold>{student.name}</Text>
         <Text style={styles.studentId}>ID: {student.id}</Text>
       </View>
       <TouchableOpacity
@@ -119,6 +119,7 @@ export default function AttendanceScreen() {
             styles.attendanceButtonText,
             student.isPresent && styles.presentButtonText,
           ]}
+          bold
         >
           {student.isPresent ? 'Present' : 'Absent'}
         </Text>
@@ -131,17 +132,17 @@ export default function AttendanceScreen() {
       <View style={styles.header}>
         <View style={styles.dateContainer}>
           <Text style={styles.dateLabel}>Date:</Text>
-          <Text style={styles.dateText}>
+          <Text style={styles.dateText} bold>
             {selectedDate.toLocaleDateString()}
           </Text>
         </View>
         <View style={styles.batchContainer}>
           <Text style={styles.batchLabel}>Batch:</Text>
-          <Text style={styles.batchText}>{selectedBatch}</Text>
+          <Text style={styles.batchText} bold>{selectedBatch}</Text>
         </View>
         <View style={styles.programContainer}>
           <Text style={styles.programLabel}>Program:</Text>
-          <Text style={styles.programText}>{selectedProgram}</Text>
+          <Text style={styles.programText} bold>{selectedProgram}</Text>
         </View>
       </View>
 
@@ -155,7 +156,7 @@ export default function AttendanceScreen() {
             size={24}
             color={COLORS.white}
           />
-          <Text style={styles.scanButtonText}>Scan Student ID</Text>
+          <Text style={styles.scanButtonText} bold>Scan Student ID</Text>
         </TouchableOpacity>
       </View>
 
@@ -167,7 +168,7 @@ export default function AttendanceScreen() {
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.submitButton}>
-          <Text style={styles.submitButtonText}>Submit Attendance</Text>
+          <Text style={styles.submitButtonText} bold>Submit Attendance</Text>
         </TouchableOpacity>
       </View>
 
@@ -199,7 +200,6 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
-    fontWeight: 'bold',
   },
   batchContainer: {
     flexDirection: 'row',
@@ -214,7 +214,6 @@ const styles = StyleSheet.create({
   batchText: {
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
-    fontWeight: 'bold',
   },
   programContainer: {
     flexDirection: 'row',
@@ -228,7 +227,6 @@ const styles = StyleSheet.create({
   programText: {
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
-    fontWeight: 'bold',
   },
   scanButtonContainer: {
     padding: SPACING.lg,
@@ -245,7 +243,6 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     marginLeft: SPACING.sm,
     fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
   },
   attendanceList: {
     flex: 1,
@@ -266,7 +263,6 @@ const styles = StyleSheet.create({
   },
   studentName: {
     fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
     color: COLORS.text,
   },
   studentId: {
@@ -309,7 +305,6 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: COLORS.white,
     fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
   },
   modalOverlay: {
     flex: 1,
@@ -334,7 +329,6 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
     color: COLORS.text,
   },
   scannerContainer: {
@@ -352,7 +346,6 @@ const styles = StyleSheet.create({
   },
   scannerText: {
     marginTop: SPACING.md,
-    fontSize: FONT_SIZES.md,
     color: COLORS.textLight,
     textAlign: 'center',
   },

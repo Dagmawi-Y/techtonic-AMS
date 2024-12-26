@@ -1,6 +1,7 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import { Text } from '../../components';
 
 interface StatCardProps {
   title: string;
@@ -47,7 +48,7 @@ export default function DashboardScreen() {
   const StatCard = ({ title, value, icon }: StatCardProps) => (
     <View style={styles.statCard}>
       <MaterialCommunityIcons name={icon} size={32} color={COLORS.primary} />
-      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statValue} bold>{value}</Text>
       <Text style={styles.statTitle}>{title}</Text>
     </View>
   );
@@ -77,7 +78,7 @@ export default function DashboardScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>Welcome, Admin!</Text>
+        <Text style={styles.welcomeText} bold>Welcome, Admin!</Text>
         <Text style={styles.dateText}>{new Date().toLocaleDateString()}</Text>
       </View>
 
@@ -105,14 +106,14 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <Text style={styles.sectionTitle} bold>Recent Activity</Text>
         {mockData.recentActivity.map((activity) => (
           <ActivityItem key={activity.id} {...activity} />
         ))}
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={styles.sectionTitle} bold>Quick Actions</Text>
         <View style={styles.quickActions}>
           <TouchableOpacity style={styles.quickActionButton}>
             <MaterialCommunityIcons
@@ -120,7 +121,7 @@ export default function DashboardScreen() {
               size={24}
               color={COLORS.white}
             />
-            <Text style={styles.quickActionText}>Add Student</Text>
+            <Text style={styles.quickActionText} bold>Add Student</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.quickActionButton}>
             <MaterialCommunityIcons
@@ -128,7 +129,7 @@ export default function DashboardScreen() {
               size={24}
               color={COLORS.white}
             />
-            <Text style={styles.quickActionText}>Mark Attendance</Text>
+            <Text style={styles.quickActionText} bold>Mark Attendance</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -147,7 +148,6 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
     color: COLORS.white,
   },
   dateText: {
@@ -173,7 +173,6 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
     color: COLORS.text,
     marginVertical: SPACING.xs,
   },
@@ -186,7 +185,6 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
     color: COLORS.text,
     marginBottom: SPACING.md,
   },
@@ -237,6 +235,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     marginLeft: SPACING.sm,
     fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
   },
 }); 

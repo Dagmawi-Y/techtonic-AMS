@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
+import { Text, TextInput } from '../../components';
 
 interface Batch {
   id: string;
@@ -66,7 +65,7 @@ export default function BatchesScreen() {
               color={COLORS.primary}
             />
             <View style={styles.batchHeaderText}>
-              <Text style={styles.batchName}>{batch.name}</Text>
+              <Text style={styles.batchName} bold>{batch.name}</Text>
               <Text style={styles.batchDates}>
                 {batch.startDate} - {batch.endDate}
               </Text>
@@ -110,7 +109,7 @@ export default function BatchesScreen() {
                   size={20}
                   color={COLORS.white}
                 />
-                <Text style={styles.actionButtonText}>Edit</Text>
+                <Text style={styles.actionButtonText} bold>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.deleteButton]}
@@ -120,7 +119,7 @@ export default function BatchesScreen() {
                   size={20}
                   color={COLORS.white}
                 />
-                <Text style={styles.actionButtonText}>Delete</Text>
+                <Text style={styles.actionButtonText} bold>Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -152,7 +151,7 @@ export default function BatchesScreen() {
             size={24}
             color={COLORS.white}
           />
-          <Text style={styles.addButtonText}>Add Batch</Text>
+          <Text style={styles.addButtonText} bold>Add Batch</Text>
         </TouchableOpacity>
       </View>
 
@@ -204,7 +203,6 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     marginLeft: SPACING.sm,
     fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
   },
   batchList: {
     padding: SPACING.md,
@@ -230,7 +228,6 @@ const styles = StyleSheet.create({
   },
   batchName: {
     fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
     color: COLORS.text,
   },
   batchDates: {
@@ -277,6 +274,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     marginLeft: SPACING.sm,
     fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
   },
 }); 
