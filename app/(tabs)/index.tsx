@@ -66,7 +66,7 @@ export default function DashboardScreen() {
 
     return (
       <TouchableOpacity style={styles.statCard} onPress={handlePress}>
-        <MaterialCommunityIcons name={icon} size={32} color={COLORS.secondary} />
+        <MaterialCommunityIcons name={icon} size={32} color={COLORS.primary} />
         <Text style={styles.statValue} bold>{value}</Text>
         <Text style={styles.statTitle}>{title}</Text>
       </TouchableOpacity>
@@ -85,7 +85,7 @@ export default function DashboardScreen() {
               : 'school'
           }
           size={24}
-          color={COLORS.secondary}
+          color={COLORS.primary}
         />
       </View>
       <View style={styles.activityContent}>

@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../constants/theme';
@@ -38,11 +39,12 @@ export default function LoginScreen() {
       >
         <View style={styles.logoContainer}>
           <MaterialCommunityIcons name="school" size={80} color={COLORS.white} />
-          <Text style={styles.title} bold>Techtonic Club</Text>
-          <Text style={styles.subtitle}>Admin Portal</Text>
+          <Text style={styles.title} bold>Techtonic Tribe</Text>     
+          <Text style={styles.subtitle}>Attendance Management System</Text>
         </View>
 
         <View style={styles.formContainer}>
+        <Text style={styles.welcome}>Welcome Back!</Text>
           <View style={styles.inputContainer}>
             <MaterialCommunityIcons name="account" size={24} color={COLORS.primary} style={styles.inputIcon} />
             <TextInput
@@ -100,6 +102,11 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     color: COLORS.white,
     marginTop: SPACING.xs,
+  },
+  welcome: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.black,
+    marginVertical: SPACING.sm,
   },
   formContainer: {
     backgroundColor: COLORS.white,
