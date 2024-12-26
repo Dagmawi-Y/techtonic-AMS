@@ -349,6 +349,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.sm,
     marginRight: SPACING.sm,
+    paddingVertical: SPACING.sm,
     ...SHADOWS.small,
   },
   searchInput: {
