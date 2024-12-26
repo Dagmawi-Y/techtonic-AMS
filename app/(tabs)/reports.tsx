@@ -195,7 +195,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
     color: COLORS.text,
   },
   subtitle: {
@@ -224,7 +223,6 @@ const styles = StyleSheet.create({
   },
   batchName: {
     fontSize: FONT_SIZES.lg,
-    fontWeight: 'bold',
     color: COLORS.text,
   },
   programName: {
@@ -245,7 +243,6 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     fontSize: FONT_SIZES.xl,
-    fontWeight: 'bold',
     color: COLORS.primary,
   },
   summaryLabel: {
@@ -305,6 +302,5 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     marginLeft: SPACING.sm,
     fontSize: FONT_SIZES.md,
-    fontWeight: 'bold',
   },
 }); 
