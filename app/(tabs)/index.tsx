@@ -59,7 +59,7 @@ export default function DashboardScreen() {
           router.push('/students');
           break;
         case 'attendance %':
-          router.push('/attendance');
+          router.push('/reports');
           break;
       }
     };
@@ -132,7 +132,7 @@ export default function DashboardScreen() {
         ))}
       </View>
 
-      <View style={{...styles.section, marginBottom: '14%'}}>
+      <View style={{...styles.section, marginBottom: '5%'}}>
         <Text style={styles.sectionTitle} bold>Quick Actions</Text>
         <View style={styles.quickActions}>
           <TouchableOpacity 
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: SPACING.lg,
-    height: '14%',
+    height: '12%',
     backgroundColor: COLORS.primary,
   },
   welcomeText: {

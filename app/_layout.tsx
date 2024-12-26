@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, StatusBar } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -29,32 +29,39 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: COLORS.primary,
-        },
-        headerTintColor: COLORS.white,
-        headerTitleStyle: {
-          fontFamily: 'Ubuntu-Bold',
-        },
-        contentStyle: {
-          backgroundColor: COLORS.background,
-        },
-      }}
-    >
-      <Stack.Screen
-        name="index"
-        options={{
-          headerShown: false,
-        }}
+    <>
+      <StatusBar
+        backgroundColor={`${COLORS.primary}99`}
+        translucent={true}
+        barStyle="light-content"
       />
-      <Stack.Screen
-        name="(tabs)"
-        options={{
-          headerShown: false,
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: COLORS.white,
+          headerTitleStyle: {
+            fontFamily: 'Ubuntu-Bold',
+          },
+          contentStyle: {
+            backgroundColor: COLORS.background,
+          },
         }}
-      />
-    </Stack>
+      >
+        <Stack.Screen
+          name="index"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            headerShown: false,
+          }}
+        />
+      </Stack>
+    </>
   );
 }
