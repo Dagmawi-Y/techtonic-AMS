@@ -2,6 +2,7 @@ import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text } from '../../components';
+import { router } from 'expo-router';
 
 interface StatCardProps {
   title: string;
@@ -45,13 +46,32 @@ const mockData = {
 };
 
 export default function DashboardScreen() {
-  const StatCard = ({ title, value, icon }: StatCardProps) => (
-    <View style={styles.statCard}>
-      <MaterialCommunityIcons name={icon} size={32} color={COLORS.primary} />
-      <Text style={styles.statValue} bold>{value}</Text>
-      <Text style={styles.statTitle}>{title}</Text>
-    </View>
-  );
+  const StatCard = ({ title, value, icon }: StatCardProps) => {
+    const handlePress = () => {
+      switch (title.toLowerCase()) {
+        case 'batches':
+          router.push('/batches');
+          break;
+        case 'programs':
+          router.push('/programs');
+          break;
+        case 'students':
+          router.push('/students');
+          break;
+        case 'attendance %':
+          router.push('/attendance');
+          break;
+      }
+    };
+
+    return (
+      <TouchableOpacity style={styles.statCard} onPress={handlePress}>
+        <MaterialCommunityIcons name={icon} size={32} color={COLORS.secondary} />
+        <Text style={styles.statValue} bold>{value}</Text>
+        <Text style={styles.statTitle}>{title}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const ActivityItem = ({ type, description, time }: ActivityItemProps) => (
     <View style={styles.activityItem}>
@@ -65,7 +85,7 @@ export default function DashboardScreen() {
               : 'school'
           }
           size={24}
-          color={COLORS.primary}
+          color={COLORS.secondary}
         />
       </View>
       <View style={styles.activityContent}>
@@ -144,6 +164,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: SPACING.lg,
+    height: '14%',
     backgroundColor: COLORS.primary,
   },
   welcomeText: {
@@ -169,7 +190,7 @@ const styles = StyleSheet.create({
     margin: '1%',
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
-    ...SHADOWS.small,
+    ...SHADOWS.medium,
   },
   statValue: {
     fontSize: FONT_SIZES.xl,
@@ -221,6 +242,7 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 14,
   },
   quickActionButton: {
     flex: 0.48,

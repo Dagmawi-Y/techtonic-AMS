@@ -57,6 +57,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="programs"
+        options={{
+          title: 'Programs',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="book-open-variant" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="students"
         options={{
           title: 'Students',
