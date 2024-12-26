@@ -5,11 +5,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 interface Batch {
   id: string;
@@ -41,9 +42,18 @@ const mockBatches: Batch[] = [
 
 export default function BatchesScreen() {
   const { action } = useLocalSearchParams();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
   const [isCreateModalVisible, setCreateModalVisible] = useState(false);
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
+  const [batches, setBatches] = useState<Batch[]>(mockBatches);
+  const [formData, setFormData] = useState({
+    name: '',
+    startDate: '',
+    endDate: '',
+  });
 
   useEffect(() => {
     if (action === 'create') {
@@ -51,19 +61,64 @@ export default function BatchesScreen() {
     }
   }, [action]);
 
-  const CreateBatchModal = () => (
+  const handleDelete = (batchId: string) => {
+    Alert.alert(
+      'Delete Batch',
+      'Are you sure you want to delete this batch?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setBatches(batches.filter(batch => batch.id !== batchId));
+            setExpandedBatch(null);
+          },
+        },
+      ],
+    );
+  };
+
+  const handleEdit = (batch: Batch) => {
+    setSelectedBatch(batch);
+    setFormData({
+      name: batch.name,
+      startDate: batch.startDate,
+      endDate: batch.endDate,
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (selectedBatch) {
+      setBatches(batches.map(batch =>
+        batch.id === selectedBatch.id
+          ? { ...batch, ...formData }
+          : batch
+      ));
+      setEditModalVisible(false);
+      setSelectedBatch(null);
+    }
+  };
+
+  const BatchModal = ({ isEdit = false }) => (
     <Modal
       animationType="slide"
       transparent={true}
-      visible={isCreateModalVisible}
-      onRequestClose={() => setCreateModalVisible(false)}
+      visible={isEdit ? isEditModalVisible : isCreateModalVisible}
+      onRequestClose={() => isEdit ? setEditModalVisible(false) : setCreateModalVisible(false)}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle} bold>Create New Batch</Text>
+            <Text style={styles.modalTitle} bold>
+              {isEdit ? 'Edit Batch' : 'Create New Batch'}
+            </Text>
             <TouchableOpacity
-              onPress={() => setCreateModalVisible(false)}
+              onPress={() => isEdit ? setEditModalVisible(false) : setCreateModalVisible(false)}
             >
               <MaterialCommunityIcons
                 name="close"
@@ -80,6 +135,8 @@ export default function BatchesScreen() {
                 style={styles.input}
                 placeholder="Enter batch name"
                 placeholderTextColor={COLORS.gray}
+                value={formData.name}
+                onChangeText={(text) => setFormData({ ...formData, name: text })}
               />
             </View>
 
@@ -89,6 +146,8 @@ export default function BatchesScreen() {
                 style={styles.input}
                 placeholder="Select start date"
                 placeholderTextColor={COLORS.gray}
+                value={formData.startDate}
+                onChangeText={(text) => setFormData({ ...formData, startDate: text })}
               />
             </View>
 
@@ -98,15 +157,8 @@ export default function BatchesScreen() {
                 style={styles.input}
                 placeholder="Select end date"
                 placeholderTextColor={COLORS.gray}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Programs</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Select programs"
-                placeholderTextColor={COLORS.gray}
+                value={formData.endDate}
+                onChangeText={(text) => setFormData({ ...formData, endDate: text })}
               />
             </View>
           </ScrollView>
@@ -114,15 +166,22 @@ export default function BatchesScreen() {
           <View style={styles.modalFooter}>
             <TouchableOpacity
               style={[styles.button, styles.cancelButton]}
-              onPress={() => setCreateModalVisible(false)}
+              onPress={() => isEdit ? setEditModalVisible(false) : setCreateModalVisible(false)}
             >
               <Text style={styles.buttonText} bold>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.saveButton]}
-              onPress={() => setCreateModalVisible(false)}
+              onPress={() => {
+                if (isEdit) {
+                  handleSaveEdit();
+                } else {
+                  // Handle create
+                  setCreateModalVisible(false);
+                }
+              }}
             >
-              <Text style={styles.buttonText} bold>Create</Text>
+              <Text style={styles.buttonText} bold>{isEdit ? 'Save' : 'Create'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -130,7 +189,7 @@ export default function BatchesScreen() {
     </Modal>
   );
 
-  const filteredBatches = mockBatches.filter((batch) =>
+  const filteredBatches = batches.filter((batch) =>
     batch.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -170,7 +229,13 @@ export default function BatchesScreen() {
         {isExpanded && (
           <View style={styles.batchDetails}>
             <View style={styles.detailRow}>
-              <View style={styles.detailItem}>
+              <TouchableOpacity
+                style={styles.detailItem}
+                onPress={() => router.push({
+                  pathname: "/batches/[id]/programs",
+                  params: { id: batch.id }
+                })}
+              >
                 <MaterialCommunityIcons
                   name="book-open-variant"
                   size={20}
@@ -179,8 +244,14 @@ export default function BatchesScreen() {
                 <Text style={styles.detailText}>
                   {batch.programCount} Programs
                 </Text>
-              </View>
-              <View style={styles.detailItem}>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.detailItem}
+                onPress={() => router.push({
+                  pathname: "/batches/[id]/students",
+                  params: { id: batch.id }
+                })}
+              >
                 <MaterialCommunityIcons
                   name="account-multiple"
                   size={20}
@@ -189,10 +260,13 @@ export default function BatchesScreen() {
                 <Text style={styles.detailText}>
                   {batch.studentCount} Students
                 </Text>
-              </View>
+              </TouchableOpacity>
             </View>
             <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => handleEdit(batch)}
+              >
                 <MaterialCommunityIcons
                   name="pencil"
                   size={20}
@@ -202,6 +276,7 @@ export default function BatchesScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.deleteButton]}
+                onPress={() => handleDelete(batch.id)}
               >
                 <MaterialCommunityIcons
                   name="delete"
@@ -248,7 +323,8 @@ export default function BatchesScreen() {
         ))}
       </ScrollView>
 
-      <CreateBatchModal />
+      <BatchModal isEdit={false} />
+      <BatchModal isEdit={true} />
     </View>
   );
 }
@@ -259,17 +335,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    padding: SPACING.lg,
-    backgroundColor: COLORS.white,
-    ...SHADOWS.small,
-  },
-  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.lightGray,
+    padding: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
     borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.sm,
-    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    marginRight: SPACING.sm,
+    ...SHADOWS.small,
   },
   searchInput: {
     flex: 1,
@@ -278,17 +358,10 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: COLORS.primary,
-    padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-  },
-  addButtonText: {
-    color: COLORS.white,
-    marginLeft: SPACING.sm,
-    fontSize: FONT_SIZES.md,
+    padding: SPACING.sm,
+    ...SHADOWS.small,
   },
   batchList: {
     padding: SPACING.md,
@@ -297,7 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
-    ...SHADOWS.small,
+    ...SHADOWS.medium,
   },
   batchHeader: {
     flexDirection: 'row',
@@ -313,12 +386,12 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.md,
   },
   batchName: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: FONT_SIZES.md,
     color: COLORS.text,
   },
   batchDates: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textLight,
+    color: COLORS.gray,
     marginTop: SPACING.xs,
   },
   batchDetails: {
@@ -337,29 +410,30 @@ const styles = StyleSheet.create({
   },
   detailText: {
     marginLeft: SPACING.sm,
-    fontSize: FONT_SIZES.md,
-    color: COLORS.text,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.secondary,
   },
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   actionButton: {
-    flex: 0.48,
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.primary,
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.sm,
+    marginHorizontal: SPACING.xs,
   },
   deleteButton: {
     backgroundColor: COLORS.error,
   },
   actionButtonText: {
     color: COLORS.white,
-    marginLeft: SPACING.sm,
-    fontSize: FONT_SIZES.md,
+    marginLeft: SPACING.xs,
+    fontSize: FONT_SIZES.sm,
   },
   modalOverlay: {
     flex: 1,
@@ -369,18 +443,18 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.md,
     width: '90%',
     maxHeight: '80%',
-    borderRadius: BORDER_RADIUS.lg,
     ...SHADOWS.medium,
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.lightGray,
+    borderBottomColor: COLORS.border,
   },
   modalTitle: {
     fontSize: FONT_SIZES.lg,
@@ -389,31 +463,31 @@ const styles = StyleSheet.create({
   modalBody: {
     padding: SPACING.md,
   },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    padding: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.lightGray,
-  },
   formGroup: {
     marginBottom: SPACING.md,
   },
   label: {
     fontSize: FONT_SIZES.sm,
-    color: COLORS.textLight,
+    color: COLORS.text,
     marginBottom: SPACING.xs,
   },
   input: {
-    backgroundColor: COLORS.background,
-    padding: SPACING.sm,
+    backgroundColor: COLORS.lightGray,
     borderRadius: BORDER_RADIUS.sm,
+    padding: SPACING.sm,
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
   },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
   button: {
     paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.md,
     borderRadius: BORDER_RADIUS.sm,
     marginLeft: SPACING.sm,
   },
@@ -424,7 +498,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   buttonText: {
-    color: COLORS.white,
-    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    fontSize: FONT_SIZES.sm,
   },
 }); 
