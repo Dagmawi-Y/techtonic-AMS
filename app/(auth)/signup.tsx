@@ -7,6 +7,8 @@ import {
   Platform,
   Alert,
   ScrollView,
+  ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
@@ -40,9 +42,10 @@ export default function SignupScreen() {
       return;
     }
 
+    Keyboard.dismiss();
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
-      console.log('signing up', email, password, name);
       await signUp(email, password, name);
       router.replace('/(tabs)');
     } catch (error: any) {
@@ -53,10 +56,11 @@ export default function SignupScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={[COLORS.primary, COLORS.secondary]}
-      style={styles.container}
-    >
+    <View style={styles.container}>
+      <LinearGradient
+        colors={[COLORS.primary, COLORS.secondary]}
+        style={StyleSheet.absoluteFill}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.content}
@@ -79,6 +83,7 @@ export default function SignupScreen() {
                 onChangeText={setName}
                 autoCapitalize="words"
                 placeholderTextColor={COLORS.gray}
+                editable={!isLoading}
               />
             </View>
 
@@ -92,6 +97,7 @@ export default function SignupScreen() {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 placeholderTextColor={COLORS.gray}
+                editable={!isLoading}
               />
             </View>
 
@@ -104,6 +110,7 @@ export default function SignupScreen() {
                 onChangeText={setPassword}
                 secureTextEntry
                 placeholderTextColor={COLORS.gray}
+                editable={!isLoading}
               />
             </View>
 
@@ -116,6 +123,7 @@ export default function SignupScreen() {
                 onChangeText={setConfirmPassword}
                 secureTextEntry
                 placeholderTextColor={COLORS.gray}
+                editable={!isLoading}
               />
             </View>
 
@@ -129,9 +137,18 @@ export default function SignupScreen() {
               onPress={handleSignup}
               disabled={isLoading}
             >
-              <Text style={styles.signupButtonText} bold>
-                {isLoading ? 'Creating Account...' : 'Sign Up'}
-              </Text>
+              <View style={styles.buttonContent}>
+                <Text style={styles.signupButtonText} bold>
+                  Sign Up
+                </Text>
+                {isLoading && (
+                  <ActivityIndicator 
+                    color={COLORS.white} 
+                    style={styles.spinner}
+                    size="small"
+                  />
+                )}
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -146,7 +163,7 @@ export default function SignupScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -210,9 +227,17 @@ const styles = StyleSheet.create({
   signupButtonDisabled: {
     opacity: 0.7,
   },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   signupButtonText: {
     color: COLORS.white,
     fontSize: FONT_SIZES.md,
+  },
+  spinner: {
+    marginLeft: SPACING.sm,
   },
   loginLink: {
     marginTop: SPACING.lg,

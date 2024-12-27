@@ -55,7 +55,7 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
-      isLoading: true,
+      isLoading: false,
       isAuthenticated: false,
       error: null,
       hydrated: false,
@@ -74,26 +74,21 @@ export const useAuthStore = create<AuthState>()(
       
       signUp: async (email: string, password: string, name: string) => {
         try {
-          set({ isLoading: true, error: null });
           const { user: firebaseUser } = await auth().createUserWithEmailAndPassword(email, password);
           const userProfile = await createUserProfile(firebaseUser, name);
           set({ 
             user: userProfile,
             isAuthenticated: true,
-            isLoading: false,
+            error: null,
           });
         } catch (error: any) {
-          set({ 
-            error: error.message,
-            isLoading: false,
-          });
+          set({ error: error.message });
           throw error;
         }
       },
       
       signIn: async (email: string, password: string) => {
         try {
-          set({ isLoading: true, error: null });
           const { user: firebaseUser } = await auth().signInWithEmailAndPassword(email, password);
           const userProfile = await getUserProfile(firebaseUser);
           
@@ -109,13 +104,10 @@ export const useAuthStore = create<AuthState>()(
           set({ 
             user: userProfile,
             isAuthenticated: true,
-            isLoading: false,
+            error: null,
           });
         } catch (error: any) {
-          set({ 
-            error: error.message,
-            isLoading: false,
-          });
+          set({ error: error.message });
           throw error;
         }
       },
