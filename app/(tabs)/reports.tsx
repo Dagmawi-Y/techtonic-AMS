@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
   filterSection: {
     flexDirection: 'row',
     gap: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.lg,
     zIndex: 2,
   },
   filterButton: {

@@ -1015,7 +1015,7 @@ const styles = StyleSheet.create({
     }),
   },
   disabledButton: {
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: COLORS.gray,
     opacity: 0.7,
   },
   disabledCard: {
