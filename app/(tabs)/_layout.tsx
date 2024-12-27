@@ -21,7 +21,7 @@ export default function TabLayout() {
             borderTopColor: COLORS.border,
             height: 60,
             paddingBottom: 5,
-            elevation: 0,
+            elevation: 5,
           },
         }),
         headerStyle: {
@@ -32,7 +32,7 @@ export default function TabLayout() {
           fontFamily: 'Ubuntu-Bold',
         },
         tabBarLabelStyle: {
-          fontFamily: 'Ubuntu-Medium',
+          fontFamily: 'Ubuntu-Regular',
         },
         tabBarShowLabel: true,
         tabBarHideOnKeyboard: true,
