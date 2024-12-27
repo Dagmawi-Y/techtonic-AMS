@@ -974,7 +974,7 @@ export default function StudentsScreen() {
                     handleEditStudent(student);
                   }}
                 >
-                  <MaterialCommunityIcons name="pencil" size={20} color={COLORS.white} />
+                  <MaterialCommunityIcons name="pencil" size={18} color={COLORS.white} />
                 </TouchableOpacity>
                 {/* <TouchableOpacity
                   style={[styles.quickActionButton, styles.quickDeleteButton]}
@@ -1087,13 +1087,13 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   departmentBadge: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.lightGray,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.sm,
   },
   departmentText: {
-    color: COLORS.white,
+    color: COLORS.gray,
     fontSize: FONT_SIZES.xs,
   },
   studentDetails: {
@@ -1444,8 +1444,8 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   quickActionButton: {
-    width: 36,
-    height: 36,
+    width: 30,
+    height: 30,
     borderRadius: BORDER_RADIUS.round,
     alignItems: 'center',
     justifyContent: 'center',
