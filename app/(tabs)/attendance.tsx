@@ -42,6 +42,13 @@ interface AttendanceRecord {
   timestamp: Date;
 }
 
+interface InvalidStudentDialogProps {
+  isVisible: boolean;
+  onClose: () => void;
+  studentName: string;
+  studentId: string;
+}
+
 // Reuse mock data from students screen
 const mockPrograms: Program[] = [
   {
@@ -333,6 +340,42 @@ const ConfirmationDialog = memo(({
   );
 });
 
+const InvalidStudentDialog = memo(({ isVisible, onClose, studentName, studentId }: InvalidStudentDialogProps) => {
+  if (!isVisible) return null;
+
+  return (
+    <Modal
+      transparent
+      visible={isVisible}
+      onRequestClose={onClose}
+      animationType="fade"
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.confirmationDialog}>
+            <MaterialCommunityIcons
+              name="alert-circle"
+              size={48}
+              color={COLORS.error}
+              style={styles.confirmationIcon}
+            />
+            <Text style={styles.confirmationTitle} bold>Invalid Student</Text>
+            <Text style={styles.confirmationMessage}>
+              {studentName} ({studentId}) is not enrolled in the selected batch and program.
+            </Text>
+            <TouchableOpacity
+              style={[styles.confirmationButton, styles.confirmButton]}
+              onPress={onClose}
+            >
+              <Text style={[styles.buttonText, { color: COLORS.white }]} bold>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+});
+
 export default function AttendanceScreen() {
   const router = useRouter();
   const [showScanner, setShowScanner] = useState(false);
@@ -342,6 +385,7 @@ export default function AttendanceScreen() {
   const [attendance, setAttendance] = useState<Record<string, AttendanceRecord>>({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const currentDate = new Date().toLocaleDateString();
+  const [invalidStudent, setInvalidStudent] = useState<{ name: string; id: string } | null>(null);
 
   const filteredStudents = mockStudents.filter((student) => {
     const matchesSearch = 
@@ -354,18 +398,26 @@ export default function AttendanceScreen() {
 
   const handleScan = useCallback((scannedId: string) => {
     const student = mockStudents.find(s => s.studentId === scannedId);
-    if (student) {
-      setAttendance(prev => ({
-        ...prev,
-        [student.id]: {
-          studentId: student.studentId,
-          isPresent: true,
-          markedBy: 'scan',
-          timestamp: new Date(),
-        },
-      }));
+    if (!student) return;
+
+    const isInSelectedBatch = !selectedBatch || student.batch?.id === selectedBatch.id;
+    const isInSelectedProgram = !selectedProgram || student.programs.some(p => p.id === selectedProgram.id);
+
+    if (!isInSelectedBatch || !isInSelectedProgram) {
+      setInvalidStudent({ name: student.name, id: student.studentId });
+      return;
     }
-  }, []);
+
+    setAttendance(prev => ({
+      ...prev,
+      [student.id]: {
+        studentId: student.studentId,
+        isPresent: true,
+        markedBy: 'scan',
+        timestamp: new Date(),
+      },
+    }));
+  }, [selectedBatch, selectedProgram]);
 
   const isSelectionValid = selectedBatch && selectedProgram;
 
@@ -430,6 +482,12 @@ export default function AttendanceScreen() {
           <MaterialCommunityIcons name="calendar" size={24} color={COLORS.primary} />
           <Text style={styles.dateText} bold>{currentDate}</Text>
         </View>
+        <TouchableOpacity 
+          style={styles.historyButton}
+          onPress={() => router.push('/attendance-history')}
+        >
+          <MaterialCommunityIcons name="history" size={24} color={COLORS.primary} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.filters}>
@@ -587,6 +645,13 @@ export default function AttendanceScreen() {
         onCancel={() => setShowConfirmation(false)}
         presentCount={presentCount}
         absentCount={absentCount}
+      />
+
+      <InvalidStudentDialog
+        isVisible={!!invalidStudent}
+        onClose={() => setInvalidStudent(null)}
+        studentName={invalidStudent?.name || ''}
+        studentId={invalidStudent?.id || ''}
       />
     </View>
   );
@@ -907,5 +972,9 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: COLORS.gray,
+  },
+  historyButton: {
+    padding: SPACING.sm,
+    borderRadius: BORDER_RADIUS.round,
   },
 }); 
