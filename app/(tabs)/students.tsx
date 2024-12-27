@@ -976,7 +976,7 @@ export default function StudentsScreen() {
                 >
                   <MaterialCommunityIcons name="pencil" size={20} color={COLORS.white} />
                 </TouchableOpacity>
-                <TouchableOpacity
+                {/* <TouchableOpacity
                   style={[styles.quickActionButton, styles.quickDeleteButton]}
                   onPress={(e) => {
                     e.stopPropagation();
@@ -984,7 +984,7 @@ export default function StudentsScreen() {
                   }}
                 >
                   <MaterialCommunityIcons name="delete" size={20} color={COLORS.white} />
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </View>
             </TouchableOpacity>
           ))}
