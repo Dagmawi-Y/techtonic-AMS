@@ -61,14 +61,98 @@ const mockReports: Report[] = [
       { date: '2024-01-01', present: 18, absent: 2, total: 20, percentage: 90 },
       { date: '2024-01-02', present: 16, absent: 4, total: 20, percentage: 80 },
       { date: '2024-01-03', present: 19, absent: 1, total: 20, percentage: 95 },
+      { date: '2024-01-04', present: 17, absent: 3, total: 20, percentage: 85 },
+      { date: '2024-01-05', present: 20, absent: 0, total: 20, percentage: 100 },
+      { date: '2024-01-06', present: 15, absent: 5, total: 20, percentage: 75 },
+      { date: '2024-01-07', present: 18, absent: 2, total: 20, percentage: 90 },
+      { date: '2024-01-08', present: 16, absent: 4, total: 20, percentage: 80 },
+      { date: '2024-01-09', present: 19, absent: 1, total: 20, percentage: 95 },
+      { date: '2024-01-10', present: 17, absent: 3, total: 20, percentage: 85 }
     ],
     summary: {
-      totalSessions: 3,
-      averageAttendance: 88.33,
+      totalSessions: 10,
+      averageAttendance: 87.5,
       totalStudents: 20,
     },
   },
-  // Add more mock reports as needed
+  {
+    id: '2',
+    batchId: '2',
+    batchName: '2025 Batch',
+    programId: 2,
+    programName: 'Mobile App Development',
+    startDate: '2024-01-01',
+    endDate: '2024-01-31',
+    records: [
+      { date: '2024-01-01', present: 22, absent: 3, total: 25, percentage: 88 },
+      { date: '2024-01-02', present: 20, absent: 5, total: 25, percentage: 80 },
+      { date: '2024-01-03', present: 24, absent: 1, total: 25, percentage: 96 },
+      { date: '2024-01-04', present: 21, absent: 4, total: 25, percentage: 84 },
+      { date: '2024-01-05', present: 25, absent: 0, total: 25, percentage: 100 },
+      { date: '2024-01-06', present: 19, absent: 6, total: 25, percentage: 76 },
+      { date: '2024-01-07', present: 23, absent: 2, total: 25, percentage: 92 },
+      { date: '2024-01-08', present: 20, absent: 5, total: 25, percentage: 80 },
+      { date: '2024-01-09', present: 24, absent: 1, total: 25, percentage: 96 },
+      { date: '2024-01-10', present: 22, absent: 3, total: 25, percentage: 88 }
+    ],
+    summary: {
+      totalSessions: 10,
+      averageAttendance: 88,
+      totalStudents: 25,
+    },
+  },
+  {
+    id: '3',
+    batchId: '1',
+    batchName: '2024 Batch',
+    programId: 2,
+    programName: 'Mobile App Development',
+    startDate: '2023-12-01',
+    endDate: '2023-12-31',
+    records: [
+      { date: '2023-12-01', present: 17, absent: 3, total: 20, percentage: 85 },
+      { date: '2023-12-02', present: 19, absent: 1, total: 20, percentage: 95 },
+      { date: '2023-12-03', present: 16, absent: 4, total: 20, percentage: 80 },
+      { date: '2023-12-04', present: 18, absent: 2, total: 20, percentage: 90 },
+      { date: '2023-12-05', present: 20, absent: 0, total: 20, percentage: 100 },
+      { date: '2023-12-06', present: 15, absent: 5, total: 20, percentage: 75 },
+      { date: '2023-12-07', present: 17, absent: 3, total: 20, percentage: 85 },
+      { date: '2023-12-08', present: 19, absent: 1, total: 20, percentage: 95 },
+      { date: '2023-12-09', present: 16, absent: 4, total: 20, percentage: 80 },
+      { date: '2023-12-10', present: 18, absent: 2, total: 20, percentage: 90 }
+    ],
+    summary: {
+      totalSessions: 10,
+      averageAttendance: 87.5,
+      totalStudents: 20,
+    },
+  },
+  {
+    id: '4',
+    batchId: '2',
+    batchName: '2025 Batch',
+    programId: 1,
+    programName: 'Web Development',
+    startDate: '2023-12-01',
+    endDate: '2023-12-31',
+    records: [
+      { date: '2023-12-01', present: 23, absent: 2, total: 25, percentage: 92 },
+      { date: '2023-12-02', present: 24, absent: 1, total: 25, percentage: 96 },
+      { date: '2023-12-03', present: 20, absent: 5, total: 25, percentage: 80 },
+      { date: '2023-12-04', present: 22, absent: 3, total: 25, percentage: 88 },
+      { date: '2023-12-05', present: 25, absent: 0, total: 25, percentage: 100 },
+      { date: '2023-12-06', present: 19, absent: 6, total: 25, percentage: 76 },
+      { date: '2023-12-07', present: 21, absent: 4, total: 25, percentage: 84 },
+      { date: '2023-12-08', present: 24, absent: 1, total: 25, percentage: 96 },
+      { date: '2023-12-09', present: 20, absent: 5, total: 25, percentage: 80 },
+      { date: '2023-12-10', present: 23, absent: 2, total: 25, percentage: 92 }
+    ],
+    summary: {
+      totalSessions: 10,
+      averageAttendance: 88.4,
+      totalStudents: 25,
+    },
+  }
 ];
 
 // Add mock data for dropdowns
