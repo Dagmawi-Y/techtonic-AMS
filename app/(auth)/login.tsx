@@ -12,18 +12,29 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../const
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text, TextInput } from '../../components';
+import { useAuthStore } from '../../store/authStore';
 
 export default function LoginScreen() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const signIn = useAuthStore((state) => state.signIn);
+  const error = useAuthStore((state) => state.error);
 
-  const handleLogin = () => {
-    if (username === 'admin' && password === '123') {
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      await signIn(email, password);
       router.replace('/(tabs)');
-    } else {
-      setError('Invalid credentials');
-      Alert.alert('Error', 'Invalid username or password');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to sign in');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -46,13 +57,14 @@ export default function LoginScreen() {
         <View style={styles.formContainer}>
           <Text style={styles.welcome}>Welcome Back!</Text>
           <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="account" size={24} color={COLORS.primary} style={styles.inputIcon} />
+            <MaterialCommunityIcons name="email" size={24} color={COLORS.primary} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Username"
-              value={username}
-              onChangeText={setUsername}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
               autoCapitalize="none"
+              keyboardType="email-address"
               placeholderTextColor={COLORS.gray}
             />
           </View>
@@ -71,13 +83,23 @@ export default function LoginScreen() {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText} bold>Login</Text>
+          <TouchableOpacity 
+            style={[
+              styles.loginButton,
+              isLoading && styles.loginButtonDisabled
+            ]} 
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            <Text style={styles.loginButtonText} bold>
+              {isLoading ? 'Signing in...' : 'Login'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.signupLink} 
             onPress={() => router.push('/signup')}
+            disabled={isLoading}
           >
             <Text style={styles.signupLinkText}>
               Don't have an account? <Text style={styles.signupLinkTextBold} bold>Sign Up</Text>
@@ -151,6 +173,9 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
     marginTop: SPACING.md,
+  },
+  loginButtonDisabled: {
+    opacity: 0.7,
   },
   loginButtonText: {
     color: COLORS.white,

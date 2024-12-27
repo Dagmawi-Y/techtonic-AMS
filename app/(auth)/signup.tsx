@@ -6,41 +6,50 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text, TextInput } from '../../components';
+import { useAuthStore } from '../../store/authStore';
 
 export default function SignupScreen() {
-  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const signUp = useAuthStore((state) => state.signUp);
+  const error = useAuthStore((state) => state.error);
 
-  const handleSignup = () => {
-    if (!username || !email || !password || !confirmPassword) {
-      setError('All fields are required');
+  const handleSignup = async () => {
+    if (!email || !password || !confirmPassword || !name) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
       Alert.alert('Error', 'Passwords do not match');
       return;
     }
 
-    // Here you would typically make an API call to register the user
-    // For now, we'll just show a success message and redirect
-    Alert.alert('Success', 'Account created successfully', [
-      {
-        text: 'OK',
-        onPress: () => router.replace('/login'),
-      },
-    ]);
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password should be at least 6 characters');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      console.log('signing up', email, password, name);
+      await signUp(email, password, name);
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to create account');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -50,82 +59,92 @@ export default function SignupScreen() {
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={[styles.content, { flex: 1 }]}
+        style={styles.content}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : -500}
       >
-        <View style={styles.logoContainer}>
-          <MaterialCommunityIcons name="school" size={80} color={COLORS.white} />
-          <Text style={styles.title} bold>Techtonic Tribe</Text>     
-          <Text style={styles.subtitle}>Member Management Portal</Text>
-        </View>
-
-        <View style={styles.formContainer}>
-          <Text style={styles.welcome} bold>Create Account</Text>
-          
-          <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="account" size={24} color={COLORS.primary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Username"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              placeholderTextColor={COLORS.gray}
-            />
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.logoContainer}>
+            <MaterialCommunityIcons name="school" size={80} color={COLORS.white} />
+            <Text style={styles.title} bold>Join Techtonic Tribe</Text>     
+            <Text style={styles.subtitle}>Create your account</Text>
           </View>
 
-          <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="email" size={24} color={COLORS.primary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              placeholderTextColor={COLORS.gray}
-            />
+          <View style={styles.formContainer}>
+            <View style={styles.inputContainer}>
+              <MaterialCommunityIcons name="account" size={24} color={COLORS.primary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Full Name"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                placeholderTextColor={COLORS.gray}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <MaterialCommunityIcons name="email" size={24} color={COLORS.primary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholderTextColor={COLORS.gray}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <MaterialCommunityIcons name="lock" size={24} color={COLORS.primary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholderTextColor={COLORS.gray}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <MaterialCommunityIcons name="lock-check" size={24} color={COLORS.primary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                placeholderTextColor={COLORS.gray}
+              />
+            </View>
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <TouchableOpacity 
+              style={[
+                styles.signupButton,
+                isLoading && styles.signupButtonDisabled
+              ]} 
+              onPress={handleSignup}
+              disabled={isLoading}
+            >
+              <Text style={styles.signupButtonText} bold>
+                {isLoading ? 'Creating Account...' : 'Sign Up'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.loginLink} 
+              onPress={() => router.back()}
+              disabled={isLoading}
+            >
+              <Text style={styles.loginLinkText}>
+                Already have an account? <Text style={styles.loginLinkTextBold} bold>Login</Text>
+              </Text>
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="lock" size={24} color={COLORS.primary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholderTextColor={COLORS.gray}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="lock-check" size={24} color={COLORS.primary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              placeholderTextColor={COLORS.gray}
-            />
-          </View>
-
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
-            <Text style={styles.signupButtonText} bold>Sign Up</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.loginLink} 
-            onPress={() => router.replace('/login')}
-          >
-            <Text style={styles.loginLinkText}>
-              Already have an account? <Text style={styles.loginLinkTextBold} bold>Login</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
   );
@@ -137,12 +156,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
     padding: SPACING.xl,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: SPACING.xl,
+    marginVertical: SPACING.xl,
   },
   title: {
     fontSize: FONT_SIZES.xxxl,
@@ -153,12 +171,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     color: COLORS.white,
     marginTop: SPACING.xs,
-  },
-  welcome: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.black,
-    marginBottom: SPACING.md,
-    textAlign: 'left',
   },
   formContainer: {
     backgroundColor: COLORS.white,
@@ -194,6 +206,9 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
     marginTop: SPACING.md,
+  },
+  signupButtonDisabled: {
+    opacity: 0.7,
   },
   signupButtonText: {
     color: COLORS.white,

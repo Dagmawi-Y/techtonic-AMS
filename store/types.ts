@@ -2,8 +2,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'teacher' | 'student';
-  photoURL?: string;
+  role: 'admin' ;
+  //| 'teacher' | 'student';
   createdAt: number;
   lastLoginAt: number;
 }
