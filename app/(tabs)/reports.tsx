@@ -414,7 +414,7 @@ const ReportCard = memo(({
             </View>
           </View>
 
-          <ChartSection report={report} />
+          {isExpanded && <ChartSection report={report} />}
 
           <View style={styles.exportSection}>
             <TouchableOpacity
