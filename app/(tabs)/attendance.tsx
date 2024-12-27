@@ -67,14 +67,14 @@ const mockBatches: Batch[] = [
   {
     id: '1',
     name: '2024 Batch',
-    startDate: '01/01/2024',
-    endDate: '12/31/2024',
+    startDate: '2024-01-01',
+    endDate: '2024-12-31',
   },
   {
     id: '2',
     name: '2025 Batch',
-    startDate: '01/01/2025',
-    endDate: '12/31/2025',
+    startDate: '2025-01-01',
+    endDate: '2025-12-31',
   },
 ];
 
@@ -112,6 +112,14 @@ const mockStudents: Student[] = [
     programs: [mockPrograms[0], mockPrograms[1]],
   },
 ];
+
+// helper function to check if batch is active
+const isActiveBatch = (batch: Batch) => {
+  const today = new Date();
+  // Ensure we're using ISO format (YYYY-MM-DD) for reliable date parsing
+  const endDate = new Date(batch.endDate + 'T23:59:59');  // Set to end of day
+  return endDate >= today;
+};
 
 // BarcodeScanner component
 const BarcodeScanner = memo(({ 
@@ -184,19 +192,19 @@ const BatchSelector = memo(({
   onSelect,
 }: {
   value: Batch | null;
-  onSelect: (value: Batch | null) => void;
+  onSelect: (batch: Batch | null) => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const activeBatches = mockBatches.filter(isActiveBatch);
 
   return (
-    <View style={styles.selectorContainer}>
-      <Text style={styles.label} bold>Batch</Text>
+    <View style={styles.filterContainer}>
       <TouchableOpacity
-        style={styles.selectorButton}
+        style={styles.filterButton}
         onPress={() => setIsOpen(!isOpen)}
       >
-        <Text style={styles.selectorButtonText}>
-          {value?.name || 'Select Batch'}
+        <Text style={styles.filterButtonText}>
+          {value ? value.name : 'Select Batch'}
         </Text>
         <MaterialCommunityIcons
           name={isOpen ? 'chevron-up' : 'chevron-down'}
@@ -206,25 +214,43 @@ const BatchSelector = memo(({
       </TouchableOpacity>
 
       {isOpen && (
-        <View style={styles.selectorList}>
-          {mockBatches.map((batch) => (
-            <TouchableOpacity
-              key={batch.id}
-              style={[
-                styles.selectorItem,
-                value?.id === batch.id && styles.selectorItemSelected
-              ]}
-              onPress={() => {
-                onSelect(batch);
-                setIsOpen(false);
-              }}
-            >
-              <Text style={[
-                styles.selectorItemText,
-                value?.id === batch.id && styles.selectorItemTextSelected
-              ]} bold>{batch.name}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.filterList}>
+          {activeBatches.length > 0 ? (
+            activeBatches.map((batch) => (
+              <TouchableOpacity
+                key={batch.id}
+                style={[
+                  styles.filterItem,
+                  value?.id === batch.id && styles.filterItemSelected
+                ]}
+                onPress={() => {
+                  onSelect(batch);
+                  setIsOpen(false);
+                }}
+              >
+                <View style={styles.filterItemContent}>
+                  <Text style={[
+                    styles.filterItemText,
+                    value?.id === batch.id && styles.filterItemTextSelected
+                  ]} bold>{batch.name}</Text>
+                  <Text style={styles.filterItemDates}>
+                    {batch.startDate} - {batch.endDate}
+                  </Text>
+                </View>
+                {value?.id === batch.id && (
+                  <MaterialCommunityIcons
+                    name="check"
+                    size={20}
+                    color={COLORS.white}
+                  />
+                )}
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.filterEmpty}>
+              <Text style={styles.filterEmptyText}>No active batches available</Text>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -235,47 +261,65 @@ const BatchSelector = memo(({
 const ProgramSelector = memo(({ 
   value,
   onSelect,
+  disabled,
 }: {
   value: Program | null;
-  onSelect: (value: Program | null) => void;
+  onSelect: (program: Program | null) => void;
+  disabled: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <View style={styles.selectorContainer}>
-      <Text style={styles.label} bold>Program</Text>
+    <View style={styles.filterContainer}>
       <TouchableOpacity
-        style={styles.selectorButton}
-        onPress={() => setIsOpen(!isOpen)}
+        style={[
+          styles.filterButton,
+          disabled && styles.filterButtonDisabled
+        ]}
+        onPress={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
       >
-        <Text style={styles.selectorButtonText}>
-          {value?.name || 'Select Program'}
+        <Text style={[
+          styles.filterButtonText,
+          disabled && styles.filterButtonTextDisabled
+        ]}>
+          {value ? value.name : 'Select Program'}
         </Text>
         <MaterialCommunityIcons
           name={isOpen ? 'chevron-up' : 'chevron-down'}
           size={24}
-          color={COLORS.text}
+          color={disabled ? COLORS.gray : COLORS.text}
         />
       </TouchableOpacity>
 
       {isOpen && (
-        <View style={styles.selectorList}>
+        <View style={styles.filterList}>
           {mockPrograms.map((program) => (
             <TouchableOpacity
               key={program.id}
               style={[
-                styles.selectorItem,
-                value?.id === program.id && styles.selectorItemSelected
+                styles.filterItem,
+                value?.id === program.id && styles.filterItemSelected
               ]}
               onPress={() => {
                 onSelect(program);
                 setIsOpen(false);
               }}
             >
-              <Text style={[
-                styles.selectorItemText,
-                value?.id === program.id && styles.selectorItemTextSelected
-              ]} bold>{program.name}</Text>
+              <View style={styles.filterItemContent}>
+                <Text style={[
+                  styles.filterItemText,
+                  value?.id === program.id && styles.filterItemTextSelected
+                ]} bold>{program.name}</Text>
+                <Text style={styles.filterItemDescription}>{program.description}</Text>
+              </View>
+              {value?.id === program.id && (
+                <MaterialCommunityIcons
+                  name="check"
+                  size={20}
+                  color={COLORS.white}
+                />
+              )}
             </TouchableOpacity>
           ))}
         </View>
@@ -475,6 +519,13 @@ export default function AttendanceScreen() {
   const presentCount = Object.values(attendance).filter(record => record.isPresent).length;
   const absentCount = Object.values(attendance).filter(record => !record.isPresent).length;
 
+  // Reset program selection when batch changes
+  useEffect(() => {
+    if (!selectedBatch) {
+      setSelectedProgram(null);
+    }
+  }, [selectedBatch]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -498,6 +549,7 @@ export default function AttendanceScreen() {
         <ProgramSelector
           value={selectedProgram}
           onSelect={setSelectedProgram}
+          disabled={!selectedBatch}
         />
       </View>
 
@@ -976,5 +1028,81 @@ const styles = StyleSheet.create({
   historyButton: {
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.round,
+  },
+  filterContainer: {
+    flex: 1,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    padding: SPACING.sm,
+    borderRadius: BORDER_RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  filterButtonDisabled: {
+    backgroundColor: COLORS.lightGray,
+    borderColor: COLORS.border,
+  },
+  filterButtonText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+  },
+  filterButtonTextDisabled: {
+    color: COLORS.gray,
+  },
+  filterList: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.sm,
+    marginTop: SPACING.xs,
+    maxHeight: 200,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    zIndex: 1000,
+    ...SHADOWS.medium,
+  },
+  filterItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  filterItemSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  filterItemContent: {
+    flex: 1,
+  },
+  filterItemText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+  },
+  filterItemTextSelected: {
+    color: COLORS.white,
+  },
+  filterItemDates: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray,
+    marginTop: SPACING.xs,
+  },
+  filterItemDescription: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray,
+    marginTop: SPACING.xs,
+  },
+  filterEmpty: {
+    padding: SPACING.md,
+    alignItems: 'center',
+  },
+  filterEmptyText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.gray,
   },
 }); 

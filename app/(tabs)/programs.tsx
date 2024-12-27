@@ -24,14 +24,14 @@ const mockBatches: Batch[] = [
   {
     id: '1',
     name: '2024 Batch',
-    startDate: '01/01/2024',
-    endDate: '12/31/2024',
+    startDate: '2024-01-01',
+    endDate: '2024-12-31',
   },
   {
     id: '2',
     name: '2025 Batch',
-    startDate: '01/01/2025',
-    endDate: '12/31/2025',
+    startDate: '2025-01-01',
+    endDate: '2025-12-31',
   },
 ];
 
