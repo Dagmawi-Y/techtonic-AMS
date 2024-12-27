@@ -473,7 +473,8 @@ const styles = StyleSheet.create({
   },
   programCard: {
     backgroundColor: COLORS.white,
-    padding: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
     ...SHADOWS.medium,

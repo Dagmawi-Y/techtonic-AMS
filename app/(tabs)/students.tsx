@@ -1041,8 +1041,8 @@ const styles = StyleSheet.create({
   },
   studentCard: {
     backgroundColor: COLORS.white,
-    padding: SPACING.lg,
-    borderRadius: BORDER_RADIUS.md,
+    padding: SPACING.sm,
+    borderRadius: BORDER_RADIUS.sm,
     marginBottom: SPACING.md,
     ...SHADOWS.medium,
   },
@@ -1052,23 +1052,23 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   studentName: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: FONT_SIZES.md,
     color: COLORS.text,
   },
   studentId: {
-    fontSize: FONT_SIZES.sm,
+    fontSize: FONT_SIZES.xs,
     color: COLORS.textLight,
     marginTop: SPACING.xs,
   },
   departmentBadge: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.secondary,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.sm,
   },
   departmentText: {
     color: COLORS.white,
-    fontSize: FONT_SIZES.sm,
+    fontSize: FONT_SIZES.xs,
   },
   studentDetails: {
     flexDirection: 'row',
