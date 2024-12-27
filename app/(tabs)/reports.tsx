@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   reportCard: {
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: COLORS.white,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
     ...SHADOWS.medium,
