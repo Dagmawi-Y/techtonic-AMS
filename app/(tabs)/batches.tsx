@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,8 +6,10 @@ import {
   ScrollView,
   Modal,
   Alert,
+  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -40,6 +42,173 @@ const mockBatches: Batch[] = [
   },
 ];
 
+const getInitialDateForPicker = (dateString: string): Date => {
+  if (!dateString) {
+    return new Date(); // Default to current date
+  }
+  
+  const [month, day, year] = dateString.split('/').map(num => parseInt(num, 10));
+  const date = new Date(year, month - 1, day);
+  
+  return isNaN(date.getTime()) ? new Date() : date;
+};
+
+// Memoize the BatchModal to prevent re-renders
+const BatchModal = memo(({ isEdit, isVisible, onClose, formData, onSave, onUpdateForm }: {
+  isEdit: boolean;
+  isVisible: boolean;
+  onClose: () => void;
+  formData: any;
+  onSave: () => void;
+  onUpdateForm: (data: any) => void;
+}) => (
+  <Modal
+    animationType="fade"
+    transparent={true}
+    hardwareAccelerated={true}
+    statusBarTranslucent={true}
+    visible={isVisible}
+    onRequestClose={onClose}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle} bold>
+            {isEdit ? 'Edit Batch' : 'Create New Batch'}
+          </Text>
+          <TouchableOpacity onPress={onClose}>
+            <MaterialCommunityIcons
+              name="close"
+              size={24}
+              color={COLORS.text}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.modalBody}>
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Batch Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter batch name"
+              placeholderTextColor={COLORS.gray}
+              value={formData.name}
+              onChangeText={(text) => onUpdateForm({ ...formData, name: text })}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Start Date</Text>
+            <TouchableOpacity
+              onPress={() => onUpdateForm({ ...formData, showStartDatePicker: true })}
+              style={styles.dateInput}
+            >
+              <TextInput
+                style={styles.input}
+                placeholder="Select start date"
+                placeholderTextColor={COLORS.gray}
+                value={formData.startDate}
+                editable={false}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>End Date</Text>
+            <TouchableOpacity
+              onPress={() => onUpdateForm({ ...formData, showEndDatePicker: true })}
+              style={styles.dateInput}
+            >
+              <TextInput
+                style={styles.input}
+                placeholder="Select end date"
+                placeholderTextColor={COLORS.gray}
+                value={formData.endDate}
+                editable={false}
+              />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+
+        <View style={styles.modalFooter}>
+          <TouchableOpacity
+            style={[styles.button, styles.cancelButton]}
+            onPress={onClose}
+          >
+            <Text style={styles.buttonText} bold>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, styles.saveButton]}
+            onPress={onSave}
+          >
+            <Text style={styles.buttonText} bold>{isEdit ? 'Save' : 'Create'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  </Modal>
+));
+
+// Memoize the DatePickerComponent to prevent re-renders
+const DatePickerComponent = memo(({ 
+  showStartDatePicker,
+  showEndDatePicker,
+  formData,
+  onDateChange,
+  onClose
+}: {
+  showStartDatePicker: boolean;
+  showEndDatePicker: boolean;
+  formData: any;
+  onDateChange: (event: any, date: Date | undefined, isStartDate: boolean) => void;
+  onClose: () => void;
+}) => {
+  const initialDate = getInitialDateForPicker(
+    showStartDatePicker ? formData.startDate : formData.endDate
+  );
+
+  if (Platform.OS === 'ios') {
+    return (
+      <Modal
+        transparent={true}
+        animationType="slide"
+        visible={showStartDatePicker || showEndDatePicker}
+        onRequestClose={onClose}
+        statusBarTranslucent={true}
+      >
+        <View style={styles.datePickerModalOverlay}>
+          <View style={styles.datePickerContent}>
+            <View style={styles.datePickerHeader}>
+              <TouchableOpacity onPress={onClose}>
+                <Text style={styles.datePickerHeaderText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onClose}>
+                <Text style={[styles.datePickerHeaderText, { color: COLORS.primary }]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={initialDate}
+              mode="date"
+              display="spinner"
+              onChange={(event, date) => onDateChange(event, date, showStartDatePicker)}
+              style={styles.datePicker}
+            />
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  return (showStartDatePicker || showEndDatePicker) ? (
+    <DateTimePicker
+      value={initialDate}
+      mode="date"
+      display="default"
+      onChange={(event, date) => onDateChange(event, date, showStartDatePicker)}
+    />
+  ) : null;
+});
+
 export default function BatchesScreen() {
   const { action } = useLocalSearchParams();
   const router = useRouter();
@@ -53,6 +222,8 @@ export default function BatchesScreen() {
     name: '',
     startDate: '',
     endDate: '',
+    showStartDatePicker: false,
+    showEndDatePicker: false,
   });
 
   useEffect(() => {
@@ -88,6 +259,8 @@ export default function BatchesScreen() {
       name: batch.name,
       startDate: batch.startDate,
       endDate: batch.endDate,
+      showStartDatePicker: false,
+      showEndDatePicker: false,
     });
     setEditModalVisible(true);
   };
@@ -104,92 +277,36 @@ export default function BatchesScreen() {
     }
   };
 
-  const BatchModal = ({ isEdit = false }) => (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      hardwareAccelerated={true}
-      statusBarTranslucent={true}
-      visible={isEdit ? isEditModalVisible : isCreateModalVisible}
-      onRequestClose={() => isEdit ? setEditModalVisible(false) : setCreateModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle} bold>
-              {isEdit ? 'Edit Batch' : 'Create New Batch'}
-            </Text>
-            <TouchableOpacity
-              onPress={() => isEdit ? setEditModalVisible(false) : setCreateModalVisible(false)}
-            >
-              <MaterialCommunityIcons
-                name="close"
-                size={24}
-                color={COLORS.text}
-              />
-            </TouchableOpacity>
-          </View>
+  const formatDate = (date: Date) => {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
 
-          <ScrollView style={styles.modalBody}>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Batch Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter batch name"
-                placeholderTextColor={COLORS.gray}
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-              />
-            </View>
+  const handleDateChange = (event: any, selectedDate: Date | undefined, isStartDate: boolean) => {
+    const currentFormData = { ...formData };
+    
+    if (Platform.OS === 'android') {
+      currentFormData.showStartDatePicker = false;
+      currentFormData.showEndDatePicker = false;
+    }
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Start Date</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Select start date"
-                placeholderTextColor={COLORS.gray}
-                value={formData.startDate}
-                onChangeText={(text) => setFormData({ ...formData, startDate: text })}
-              />
-            </View>
+    if (selectedDate) {
+      const formattedDate = formatDate(selectedDate);
+      currentFormData[isStartDate ? 'startDate' : 'endDate'] = formattedDate;
+    }
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>End Date</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Select end date"
-                placeholderTextColor={COLORS.gray}
-                value={formData.endDate}
-                onChangeText={(text) => setFormData({ ...formData, endDate: text })}
-              />
-            </View>
-          </ScrollView>
+    setFormData(currentFormData);
+  };
 
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={() => isEdit ? setEditModalVisible(false) : setCreateModalVisible(false)}
-            >
-              <Text style={styles.buttonText} bold>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={() => {
-                if (isEdit) {
-                  handleSaveEdit();
-                } else {
-                  // Handle create
-                  setCreateModalVisible(false);
-                }
-              }}
-            >
-              <Text style={styles.buttonText} bold>{isEdit ? 'Save' : 'Create'}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+  const closeDatePicker = () => {
+    setFormData(prev => ({
+      ...prev,
+      showStartDatePicker: false,
+      showEndDatePicker: false,
+    }));
+  };
 
   const filteredBatches = batches.filter((batch) =>
     batch.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -325,8 +442,30 @@ export default function BatchesScreen() {
         ))}
       </ScrollView>
 
-      <BatchModal isEdit={false} />
-      <BatchModal isEdit={true} />
+      <BatchModal
+        isEdit={false}
+        isVisible={isCreateModalVisible}
+        onClose={() => setCreateModalVisible(false)}
+        formData={formData}
+        onSave={() => setCreateModalVisible(false)}
+        onUpdateForm={setFormData}
+      />
+      <BatchModal
+        isEdit={true}
+        isVisible={isEditModalVisible}
+        onClose={() => setEditModalVisible(false)}
+        formData={formData}
+        onSave={handleSaveEdit}
+        onUpdateForm={setFormData}
+      />
+
+      <DatePickerComponent
+        showStartDatePicker={formData.showStartDatePicker}
+        showEndDatePicker={formData.showEndDatePicker}
+        formData={formData}
+        onDateChange={handleDateChange}
+        onClose={closeDatePicker}
+      />
     </View>
   );
 }
@@ -503,5 +642,36 @@ const styles = StyleSheet.create({
   buttonText: {
     color: COLORS.text,
     fontSize: FONT_SIZES.sm,
+  },
+  dateInput: {
+    width: '100%',
+  },
+  datePicker: {
+    backgroundColor: COLORS.white,
+    height: 200,
+  },
+  datePickerModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 1000, // Ensure it's above other modals
+  },
+  datePickerContent: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: BORDER_RADIUS.md,
+    borderTopRightRadius: BORDER_RADIUS.md,
+    paddingBottom: SPACING.xl,
+    zIndex: 1001, // Ensure it's above the overlay
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  datePickerHeaderText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
   },
 }); 
