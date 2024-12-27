@@ -60,7 +60,7 @@ export default function SignupScreen() {
         </View>
 
         <View style={styles.formContainer}>
-          <Text style={styles.welcome}>Create Account</Text>
+          <Text style={styles.welcome} bold>Create Account</Text>
           
           <View style={styles.inputContainer}>
             <MaterialCommunityIcons name="account" size={24} color={COLORS.primary} style={styles.inputIcon} />
@@ -155,11 +155,10 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   welcome: {
-    fontSize: FONT_SIZES.lg,
+    fontSize: FONT_SIZES.md,
     color: COLORS.black,
-    marginVertical: SPACING.sm,
-    textAlign: 'center',
-    fontWeight: 'bold',
+    marginBottom: SPACING.md,
+    textAlign: 'left',
   },
   formContainer: {
     backgroundColor: COLORS.white,
