@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
@@ -142,6 +142,181 @@ const BatchSelector = memo(({
   );
 });
 
+const CreateProgramModal = memo(({ 
+  isVisible, 
+  onClose,
+  formData,
+  onUpdateForm,
+  onNavigateToBatches
+}: {
+  isVisible: boolean;
+  onClose: () => void;
+  formData: any;
+  onUpdateForm: (data: any) => void;
+  onNavigateToBatches: () => void;
+}) => (
+  <Modal
+    animationType="fade"
+    transparent={true}
+    visible={isVisible}
+    onRequestClose={onClose}
+  >
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalContent}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle} bold>Create New Program</Text>
+          <TouchableOpacity onPress={onClose}>
+            <MaterialCommunityIcons
+              name="close"
+              size={24}
+              color={COLORS.text}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.modalBody}>
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Program Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter program name"
+              placeholderTextColor={COLORS.gray}
+              value={formData.name}
+              onChangeText={(text) => onUpdateForm({ ...formData, name: text })}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Description</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Enter program description"
+              placeholderTextColor={COLORS.gray}
+              multiline
+              numberOfLines={4}
+              value={formData.description}
+              onChangeText={(text) => onUpdateForm({ ...formData, description: text })}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Duration (weeks)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter duration"
+              placeholderTextColor={COLORS.gray}
+              keyboardType="numeric"
+              value={formData.duration}
+              onChangeText={(text) => onUpdateForm({ ...formData, duration: text })}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Batches</Text>
+            <BatchSelector
+              batches={mockBatches}
+              selectedBatches={formData.batches}
+              onSelect={(batches) => onUpdateForm({ ...formData, batches })}
+              onNavigateToBatches={onNavigateToBatches}
+            />
+          </View>
+        </ScrollView>
+
+        <View style={styles.modalFooter}>
+          <TouchableOpacity
+            style={[styles.button, styles.cancelButton]}
+            onPress={onClose}
+          >
+            <Text style={styles.buttonText} bold>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, styles.saveButton]}
+            onPress={onClose}
+          >
+            <Text style={[styles.buttonText, { color: COLORS.white }]} bold>Create</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  </Modal>
+));
+
+const ProgramDetailsModal = memo(({ 
+  isVisible,
+  onClose,
+  program
+}: {
+  isVisible: boolean;
+  onClose: () => void;
+  program: Program | null;
+}) => {
+  if (!program) return null;
+
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={isVisible}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle} bold>{program.name}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <MaterialCommunityIcons
+                name="close"
+                size={24}
+                color={COLORS.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalBody}>
+            <View style={styles.detailSection}>
+              <Text style={styles.detailLabel}>Description</Text>
+              <Text style={styles.detailText}>{program.description}</Text>
+            </View>
+
+            <View style={styles.detailSection}>
+              <Text style={styles.detailLabel}>Duration</Text>
+              <View style={styles.detailRow}>
+                <MaterialCommunityIcons name="clock-outline" size={20} color={COLORS.primary} />
+                <Text style={styles.detailText}>{program.duration} Weeks</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailSection}>
+              <Text style={styles.detailLabel}>Batches ({program.batches.length})</Text>
+              {program.batches.length > 0 ? (
+                program.batches.map((batch) => (
+                  <View key={batch.id} style={styles.batchDetailCard}>
+                    <Text style={styles.batchDetailName} bold>{batch.name}</Text>
+                    <Text style={styles.batchDetailDates}>
+                      {batch.startDate} - {batch.endDate}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyText}>No batches assigned</Text>
+              )}
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={[styles.button, styles.saveButton]}
+              onPress={onClose}
+            >
+              <Text style={[styles.buttonText, { color: COLORS.white }]} bold>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+});
+
 export default function ProgramsScreen() {
   const { action } = useLocalSearchParams();
   const router = useRouter();
@@ -154,6 +329,7 @@ export default function ProgramsScreen() {
     duration: '',
     batches: [] as Batch[],
   });
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
 
   useEffect(() => {
     if (action === 'create') {
@@ -161,102 +337,29 @@ export default function ProgramsScreen() {
     }
   }, [action]);
 
-  const handleNavigateToBatches = () => {
+  const handleUpdateForm = useCallback((newData: typeof formData) => {
+    setFormData(newData);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setCreateModalVisible(false);
+  }, []);
+
+  const handleNavigateToBatches = useCallback(() => {
     router.push('/batches');
-  };
+  }, [router]);
+
+  const handleProgramPress = useCallback((program: Program) => {
+    setSelectedProgram(program);
+  }, []);
+
+  const handleCloseDetailsModal = useCallback(() => {
+    setSelectedProgram(null);
+  }, []);
 
   const filteredPrograms = programs.filter((program) =>
     program.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     program.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const CreateProgramModal = () => (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={isCreateModalVisible}
-      onRequestClose={() => setCreateModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle} bold>Create New Program</Text>
-            <TouchableOpacity
-              onPress={() => setCreateModalVisible(false)}
-            >
-              <MaterialCommunityIcons
-                name="close"
-                size={24}
-                color={COLORS.text}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalBody}>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Program Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter program name"
-                placeholderTextColor={COLORS.gray}
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Description</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Enter program description"
-                placeholderTextColor={COLORS.gray}
-                multiline
-                numberOfLines={4}
-                value={formData.description}
-                onChangeText={(text) => setFormData({ ...formData, description: text })}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Duration (weeks)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter duration"
-                placeholderTextColor={COLORS.gray}
-                keyboardType="numeric"
-                value={formData.duration}
-                onChangeText={(text) => setFormData({ ...formData, duration: text })}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Batches</Text>
-              <BatchSelector
-                batches={mockBatches}
-                selectedBatches={formData.batches}
-                onSelect={(batches) => setFormData({ ...formData, batches })}
-                onNavigateToBatches={handleNavigateToBatches}
-              />
-            </View>
-          </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={() => setCreateModalVisible(false)}
-            >
-              <Text style={styles.buttonText} bold>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={() => setCreateModalVisible(false)}
-            >
-              <Text style={[styles.buttonText, { color: COLORS.white }]} bold>Create</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
   );
 
   return (
@@ -286,7 +389,11 @@ export default function ProgramsScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {filteredPrograms.map((program) => (
-          <TouchableOpacity key={program.id} style={styles.programCard}>
+          <TouchableOpacity 
+            key={program.id} 
+            style={styles.programCard}
+            onPress={() => handleProgramPress(program)}
+          >
             <View style={styles.programHeader}>
               <Text style={styles.programName} bold>{program.name}</Text>
               <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.primary} />
@@ -306,7 +413,19 @@ export default function ProgramsScreen() {
         ))}
       </ScrollView>
 
-      <CreateProgramModal />
+      <CreateProgramModal
+        isVisible={isCreateModalVisible}
+        onClose={handleCloseModal}
+        formData={formData}
+        onUpdateForm={handleUpdateForm}
+        onNavigateToBatches={handleNavigateToBatches}
+      />
+
+      <ProgramDetailsModal
+        isVisible={selectedProgram !== null}
+        onClose={handleCloseDetailsModal}
+        program={selectedProgram}
+      />
     </View>
   );
 }
@@ -456,7 +575,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   buttonText: {
-    color: COLORS.white,
+    color: COLORS.black,
     fontSize: FONT_SIZES.md,
   },
   searchInput: {
@@ -538,5 +657,45 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     marginLeft: SPACING.xs,
     fontSize: FONT_SIZES.md,
+  },
+  detailSection: {
+    marginBottom: SPACING.lg,
+  },
+  detailLabel: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+  },
+  detailText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textLight,
+    lineHeight: 24,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  batchDetailCard: {
+    backgroundColor: COLORS.lightGray,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.sm,
+    marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  batchDetailName: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    marginBottom: SPACING.xs,
+  },
+  batchDetailDates: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textLight,
+  },
+  emptyText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.gray,
+    fontStyle: 'italic',
   },
 }); 
