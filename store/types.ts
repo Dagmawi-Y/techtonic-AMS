@@ -23,7 +23,7 @@ export interface Batch {
   name: string;
   startDate: number;
   endDate: number;
-  teacherId: string;
+  // teacherId: string;
   status: 'active' | 'completed' | 'upcoming';
   createdAt: number;
   updatedAt: number;
