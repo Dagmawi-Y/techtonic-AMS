@@ -14,6 +14,12 @@ import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../const
 import { Text, TextInput } from '../../components';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
+interface Program {
+  id: number;
+  name: string;
+  description: string;
+}
+
 interface Batch {
   id: string;
   name: string;
@@ -21,7 +27,21 @@ interface Batch {
   endDate: string;
   programCount: number;
   studentCount: number;
+  programs: Program[];
 }
+
+const mockPrograms: Program[] = [
+  {
+    id: 1,
+    name: 'Web Development',
+    description: 'Full stack web development with modern technologies',
+  },
+  {
+    id: 2,
+    name: 'Mobile App Development',
+    description: 'Cross-platform mobile app development',
+  },
+];
 
 const mockBatches: Batch[] = [
   {
@@ -31,6 +51,7 @@ const mockBatches: Batch[] = [
     endDate: '12/31/2024',
     programCount: 3,
     studentCount: 25,
+    programs: [mockPrograms[0]],
   },
   {
     id: '2',
@@ -39,6 +60,7 @@ const mockBatches: Batch[] = [
     endDate: '12/31/2025',
     programCount: 2,
     studentCount: 20,
+    programs: [mockPrograms[1]],
   },
 ];
 
@@ -53,14 +75,124 @@ const getInitialDateForPicker = (dateString: string): Date => {
   return isNaN(date.getTime()) ? new Date() : date;
 };
 
+const ProgramSelector = memo(({ 
+  programs,
+  selectedPrograms,
+  onSelect,
+  onNavigateToPrograms
+}: {
+  programs: Program[];
+  selectedPrograms: Program[];
+  onSelect: (programs: Program[]) => void;
+  onNavigateToPrograms: () => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (programs.length === 0) {
+    return (
+      <View style={styles.programSelectorEmpty}>
+        <Text style={styles.programSelectorEmptyText}>No programs available</Text>
+        <TouchableOpacity
+          style={styles.programSelectorEmptyButton}
+          onPress={onNavigateToPrograms}
+        >
+          <MaterialCommunityIcons name="plus" size={20} color={COLORS.white} />
+          <Text style={styles.programSelectorEmptyButtonText} bold>Add Program</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      <TouchableOpacity
+        style={styles.programSelectorButton}
+        onPress={() => setIsOpen(!isOpen)}
+      >
+        <Text style={styles.programSelectorButtonText}>
+          {selectedPrograms.length === 0
+            ? 'Select Programs'
+            : `${selectedPrograms.length} Program${selectedPrograms.length === 1 ? '' : 's'} Selected`}
+        </Text>
+        <MaterialCommunityIcons
+          name={isOpen ? 'chevron-up' : 'chevron-down'}
+          size={24}
+          color={COLORS.text}
+        />
+      </TouchableOpacity>
+
+      {isOpen && (
+        <View style={styles.programList}>
+          {programs.map((program) => {
+            const isSelected = selectedPrograms.some(p => p.id === program.id);
+            return (
+              <TouchableOpacity
+                key={program.id}
+                style={[
+                  styles.programItem,
+                  isSelected && styles.programItemSelected
+                ]}
+                onPress={() => {
+                  if (isSelected) {
+                    onSelect(selectedPrograms.filter(p => p.id !== program.id));
+                  } else {
+                    onSelect([...selectedPrograms, program]);
+                  }
+                }}
+              >
+                <View style={styles.programItemContent}>
+                  <Text style={[
+                    styles.programItemText,
+                    isSelected && styles.programItemTextSelected
+                  ]} bold>{program.name}</Text>
+                  <Text style={styles.programItemDescription} numberOfLines={1}>
+                    {program.description}
+                  </Text>
+                </View>
+                {isSelected && (
+                  <MaterialCommunityIcons
+                    name="check"
+                    size={20}
+                    color={COLORS.white}
+                  />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+});
+
+interface FormErrors {
+  name?: string;
+  startDate?: string;
+  endDate?: string;
+  programs?: string;
+}
+
 // Memoize the BatchModal to prevent re-renders
-const BatchModal = memo(({ isEdit, isVisible, onClose, formData, onSave, onUpdateForm }: {
+const BatchModal = memo(({ 
+  isEdit,
+  isVisible,
+  onClose,
+  formData,
+  formErrors,
+  onUpdateForm,
+  onNavigateToPrograms,
+  onSave,
+  onClearError,
+}: {
   isEdit: boolean;
   isVisible: boolean;
   onClose: () => void;
   formData: any;
-  onSave: () => void;
+  formErrors: FormErrors;
   onUpdateForm: (data: any) => void;
+  onNavigateToPrograms: () => void;
+  onSave: () => void;
+  onClearError: (field: keyof FormErrors) => void;
 }) => (
   <Modal
     animationType="fade"
@@ -89,12 +221,41 @@ const BatchModal = memo(({ isEdit, isVisible, onClose, formData, onSave, onUpdat
           <View style={styles.formGroup}>
             <Text style={styles.label}>Batch Name</Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                formErrors.name && styles.inputError
+              ]}
               placeholder="Enter batch name"
               placeholderTextColor={COLORS.gray}
               value={formData.name}
-              onChangeText={(text) => onUpdateForm({ ...formData, name: text })}
+              onChangeText={(text) => {
+                onUpdateForm({ ...formData, name: text });
+                if (formErrors.name) {
+                  onClearError('name');
+                }
+              }}
             />
+            {formErrors.name && (
+              <Text style={styles.errorText}>{formErrors.name}</Text>
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Programs</Text>
+            <ProgramSelector
+              programs={mockPrograms}
+              selectedPrograms={formData.programs || []}
+              onSelect={(programs) => {
+                onUpdateForm({ ...formData, programs });
+                if (formErrors.programs) {
+                  onClearError('programs');
+                }
+              }}
+              onNavigateToPrograms={onNavigateToPrograms}
+            />
+            {formErrors.programs && (
+              <Text style={styles.errorText}>{formErrors.programs}</Text>
+            )}
           </View>
 
           <View style={styles.formGroup}>
@@ -104,13 +265,19 @@ const BatchModal = memo(({ isEdit, isVisible, onClose, formData, onSave, onUpdat
               style={styles.dateInput}
             >
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  formErrors.startDate && styles.inputError
+                ]}
                 placeholder="Select start date"
                 placeholderTextColor={COLORS.gray}
                 value={formData.startDate}
                 editable={false}
               />
             </TouchableOpacity>
+            {formErrors.startDate && (
+              <Text style={styles.errorText}>{formErrors.startDate}</Text>
+            )}
           </View>
 
           <View style={styles.formGroup}>
@@ -120,13 +287,19 @@ const BatchModal = memo(({ isEdit, isVisible, onClose, formData, onSave, onUpdat
               style={styles.dateInput}
             >
               <TextInput
-                style={styles.input}
+                style={[
+                  styles.input,
+                  formErrors.endDate && styles.inputError
+                ]}
                 placeholder="Select end date"
                 placeholderTextColor={COLORS.gray}
                 value={formData.endDate}
                 editable={false}
               />
             </TouchableOpacity>
+            {formErrors.endDate && (
+              <Text style={styles.errorText}>{formErrors.endDate}</Text>
+            )}
           </View>
         </ScrollView>
 
@@ -141,7 +314,9 @@ const BatchModal = memo(({ isEdit, isVisible, onClose, formData, onSave, onUpdat
             style={[styles.button, styles.saveButton]}
             onPress={onSave}
           >
-            <Text style={styles.buttonText} bold>{isEdit ? 'Save' : 'Create'}</Text>
+            <Text style={[styles.buttonText, { color: COLORS.white }]} bold>
+              {isEdit ? 'Save' : 'Create'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -224,7 +399,9 @@ export default function BatchesScreen() {
     endDate: '',
     showStartDatePicker: false,
     showEndDatePicker: false,
+    programs: [] as Program[],
   });
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
 
   useEffect(() => {
     if (action === 'create') {
@@ -261,6 +438,7 @@ export default function BatchesScreen() {
       endDate: batch.endDate,
       showStartDatePicker: false,
       showEndDatePicker: false,
+      programs: batch.programs,
     });
     setEditModalVisible(true);
   };
@@ -411,6 +589,104 @@ export default function BatchesScreen() {
     );
   };
 
+  const handleNavigateToPrograms = () => {
+    router.push('/programs');
+  };
+
+  const validateForm = (data: typeof formData): FormErrors => {
+    const errors: FormErrors = {};
+
+    // Name validation
+    if (!data.name.trim()) {
+      errors.name = 'Batch name is required';
+    } else if (data.name.length < 3) {
+      errors.name = 'Batch name must be at least 3 characters';
+    }
+
+    // Programs validation
+    if (!data.programs.length) {
+      errors.programs = 'Select at least one program';
+    }
+
+    // Date validations
+    if (!data.startDate) {
+      errors.startDate = 'Start date is required';
+    }
+    
+    if (!data.endDate) {
+      errors.endDate = 'End date is required';
+    }
+
+    if (data.startDate && data.endDate) {
+      // Parse dates in MM/DD/YYYY format
+      const parseDate = (dateStr: string): Date | null => {
+        const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
+        if (!month || !day || !year) return null;
+        const date = new Date(year, month - 1, day); // month is 0-based
+        return date;
+      };
+
+      const startDate = parseDate(data.startDate);
+      const endDate = parseDate(data.endDate);
+      
+      if (!startDate) {
+        errors.startDate = 'Invalid start date';
+      }
+      
+      if (!endDate) {
+        errors.endDate = 'Invalid end date';
+      }
+      
+      if (startDate && endDate && endDate < startDate) {
+        errors.endDate = 'End date cannot be earlier than start date';
+      }
+    }
+
+    return errors;
+  };
+
+  const handleSave = () => {
+    const errors = validateForm(formData);
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length === 0) {
+      // No errors, proceed with save
+      if (selectedBatch) {
+        handleSaveEdit();
+      } else {
+        // Handle create
+        const newBatch: Batch = {
+          id: Date.now().toString(), // temporary ID generation
+          name: formData.name,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          programs: formData.programs,
+          programCount: formData.programs.length,
+          studentCount: 0, // New batch starts with 0 students
+        };
+        setBatches([...batches, newBatch]);
+        setCreateModalVisible(false);
+        resetForm();
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      startDate: '',
+      endDate: '',
+      showStartDatePicker: false,
+      showEndDatePicker: false,
+      programs: [],
+    });
+    setFormErrors({});
+  };
+
+  const clearError = (field: keyof FormErrors) => {
+    setFormErrors(prev => ({ ...prev, [field]: undefined }));
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -445,18 +721,30 @@ export default function BatchesScreen() {
       <BatchModal
         isEdit={false}
         isVisible={isCreateModalVisible}
-        onClose={() => setCreateModalVisible(false)}
+        onClose={() => {
+          setCreateModalVisible(false);
+          resetForm();
+        }}
         formData={formData}
-        onSave={() => setCreateModalVisible(false)}
+        formErrors={formErrors}
         onUpdateForm={setFormData}
+        onNavigateToPrograms={handleNavigateToPrograms}
+        onSave={handleSave}
+        onClearError={clearError}
       />
       <BatchModal
         isEdit={true}
         isVisible={isEditModalVisible}
-        onClose={() => setEditModalVisible(false)}
+        onClose={() => {
+          setEditModalVisible(false);
+          resetForm();
+        }}
         formData={formData}
-        onSave={handleSaveEdit}
+        formErrors={formErrors}
         onUpdateForm={setFormData}
+        onNavigateToPrograms={handleNavigateToPrograms}
+        onSave={handleSave}
+        onClearError={clearError}
       />
 
       <DatePickerComponent
@@ -673,5 +961,82 @@ const styles = StyleSheet.create({
   datePickerHeaderText: {
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
+  },
+  programSelectorButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.lightGray,
+    borderRadius: BORDER_RADIUS.sm,
+    padding: SPACING.sm,
+  },
+  programSelectorButtonText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+  },
+  programList: {
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.sm,
+    marginTop: SPACING.xs,
+    maxHeight: 200,
+    ...SHADOWS.small,
+  },
+  programItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  programItemSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  programItemContent: {
+    flex: 1,
+  },
+  programItemText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+  },
+  programItemTextSelected: {
+    color: COLORS.white,
+  },
+  programItemDescription: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray,
+    marginTop: SPACING.xs,
+  },
+  programSelectorEmpty: {
+    backgroundColor: COLORS.lightGray,
+    borderRadius: BORDER_RADIUS.sm,
+    padding: SPACING.md,
+    alignItems: 'center',
+  },
+  programSelectorEmptyText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.gray,
+    marginBottom: SPACING.sm,
+  },
+  programSelectorEmptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  programSelectorEmptyButtonText: {
+    color: COLORS.white,
+    marginLeft: SPACING.xs,
+    fontSize: FONT_SIZES.md,
+  },
+  inputError: {
+    borderWidth: 1,
+    borderColor: COLORS.error,
+  },
+  errorText: {
+    color: COLORS.error,
+    fontSize: FONT_SIZES.sm,
+    marginTop: SPACING.xs,
   },
 }); 
