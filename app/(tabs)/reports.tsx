@@ -94,76 +94,6 @@ const mockPrograms: Program[] = [
   },
 ];
 
-const DateRangePicker = memo(({ 
-  startDate,
-  endDate,
-  onStartDateChange,
-  onEndDateChange,
-}: {
-  startDate: string;
-  endDate: string;
-  onStartDateChange: (date: string) => void;
-  onEndDateChange: (date: string) => void;
-}) => {
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
-
-  const handleDateChange = (event: any, selectedDate: Date | undefined, isStart: boolean) => {
-    if (RNPlatform.OS === 'android') {
-      setShowStartPicker(false);
-      setShowEndPicker(false);
-    }
-
-    if (selectedDate) {
-      const formattedDate = selectedDate.toISOString().split('T')[0];
-      if (isStart) {
-        onStartDateChange(formattedDate);
-      } else {
-        onEndDateChange(formattedDate);
-      }
-    }
-  };
-
-  const formatDisplayDate = (dateString: string) => {
-    if (!dateString) return 'Select date';
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  return (
-    <View style={styles.dateRangeContainer}>
-      <View style={styles.datePickerContainer}>
-        <Text style={styles.dateLabel}>From</Text>
-        <TouchableOpacity 
-          style={styles.datePicker}
-          onPress={() => setShowStartPicker(true)}
-        >
-          <Text>{formatDisplayDate(startDate)}</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.datePickerContainer}>
-        <Text style={styles.dateLabel}>To</Text>
-        <TouchableOpacity 
-          style={styles.datePicker}
-          onPress={() => setShowEndPicker(true)}
-        >
-          <Text>{formatDisplayDate(endDate)}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {(showStartPicker || showEndPicker) && (
-        <DateTimePicker
-          value={new Date(showStartPicker ? (startDate || Date.now()) : (endDate || Date.now()))}
-          mode="date"
-          display={RNPlatform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, date) => handleDateChange(event, date, showStartPicker)}
-          minimumDate={showEndPicker ? new Date(startDate) : undefined}
-          maximumDate={showStartPicker ? (endDate ? new Date(endDate) : undefined) : undefined}
-        />
-      )}
-    </View>
-  );
-});
-
 const FilterSection = memo(({
   selectedBatch,
   selectedProgram,
@@ -559,12 +489,6 @@ export default function ReportsScreen() {
           selectedProgram={selectedProgram}
           onBatchChange={setSelectedBatch}
           onProgramChange={setSelectedProgram}
-        />
-        <DateRangePicker
-          startDate={startDate}
-          endDate={endDate}
-          onStartDateChange={setStartDate}
-          onEndDateChange={setEndDate}
         />
       </View>
 
