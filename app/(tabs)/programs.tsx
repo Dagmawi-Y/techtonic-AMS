@@ -42,7 +42,7 @@ export default function ProgramsScreen() {
 
   const CreateProgramModal = () => (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       visible={isCreateModalVisible}
       onRequestClose={() => setCreateModalVisible(false)}

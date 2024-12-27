@@ -69,7 +69,7 @@ export default function AttendanceScreen() {
 
   const ScannerModal = () => (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       visible={isScannerVisible}
       onRequestClose={() => setScannerVisible(false)}

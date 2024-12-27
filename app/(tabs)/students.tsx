@@ -63,7 +63,7 @@ export default function StudentsScreen() {
 
   const RegistrationModal = () => (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       visible={isRegistrationModalVisible}
       onRequestClose={() => setRegistrationModalVisible(false)}

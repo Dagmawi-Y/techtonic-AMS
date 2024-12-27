@@ -106,8 +106,9 @@ export default function BatchesScreen() {
 
   const BatchModal = ({ isEdit = false }) => (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
+      hardwareAccelerated={true}
       visible={isEdit ? isEditModalVisible : isCreateModalVisible}
       onRequestClose={() => isEdit ? setEditModalVisible(false) : setCreateModalVisible(false)}
     >
