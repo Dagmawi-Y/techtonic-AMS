@@ -109,6 +109,7 @@ export default function BatchesScreen() {
       animationType="fade"
       transparent={true}
       hardwareAccelerated={true}
+      statusBarTranslucent={true}
       visible={isEdit ? isEditModalVisible : isCreateModalVisible}
       onRequestClose={() => isEdit ? setEditModalVisible(false) : setCreateModalVisible(false)}
     >
