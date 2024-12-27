@@ -241,15 +241,70 @@ const CreateProgramModal = memo(({
   </Modal>
 ));
 
+const DeleteConfirmationDialog = memo(({
+  isVisible,
+  program,
+  onConfirm,
+  onCancel,
+}: {
+  isVisible: boolean;
+  program: Program;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) => {
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={isVisible}
+      onRequestClose={onCancel}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, styles.confirmationDialog]}>
+          <View style={styles.confirmationIcon}>
+            <MaterialCommunityIcons
+              name="alert-circle-outline"
+              size={48}
+              color={COLORS.error}
+            />
+          </View>
+          <Text style={styles.confirmationTitle} bold>Delete Program</Text>
+          <Text style={styles.confirmationMessage}>
+            Are you sure you want to delete {program.name}? This action cannot be undone.
+          </Text>
+          <View style={styles.confirmationButtons}>
+            <TouchableOpacity
+              style={[styles.confirmationButton, styles.cancelButton]}
+              onPress={onCancel}
+            >
+              <Text style={styles.buttonText} bold>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.confirmationButton, styles.confirmButton]}
+              onPress={onConfirm}
+            >
+              <Text style={[styles.buttonText, { color: COLORS.white }]} bold>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+});
+
 const ProgramDetailsModal = memo(({ 
   isVisible,
   onClose,
-  program
+  program,
+  onDelete
 }: {
   isVisible: boolean;
   onClose: () => void;
   program: Program | null;
+  onDelete: (programId: number) => void;
 }) => {
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+
   if (!program) return null;
 
   return (
@@ -305,7 +360,14 @@ const ProgramDetailsModal = memo(({
 
           <View style={styles.modalFooter}>
             <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
+              style={[styles.button, styles.deleteButton]}
+              onPress={() => setShowDeleteConfirmation(true)}
+            >
+              <MaterialCommunityIcons name="delete" size={20} color={COLORS.white} />
+              <Text style={[styles.buttonText, { color: COLORS.white, marginLeft: SPACING.xs }]} bold>Delete</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.closeButton]}
               onPress={onClose}
             >
               <Text style={[styles.buttonText, { color: COLORS.white }]} bold>Close</Text>
@@ -313,6 +375,16 @@ const ProgramDetailsModal = memo(({
           </View>
         </View>
       </View>
+
+      <DeleteConfirmationDialog
+        isVisible={showDeleteConfirmation}
+        program={program}
+        onConfirm={() => {
+          onDelete(program.id);
+          onClose();
+        }}
+        onCancel={() => setShowDeleteConfirmation(false)}
+      />
     </Modal>
   );
 });
@@ -355,6 +427,10 @@ export default function ProgramsScreen() {
 
   const handleCloseDetailsModal = useCallback(() => {
     setSelectedProgram(null);
+  }, []);
+
+  const handleDeleteProgram = useCallback((programId: number) => {
+    setPrograms(prevPrograms => prevPrograms.filter(p => p.id !== programId));
   }, []);
 
   const filteredPrograms = programs.filter((program) =>
@@ -425,6 +501,7 @@ export default function ProgramsScreen() {
         isVisible={selectedProgram !== null}
         onClose={handleCloseDetailsModal}
         program={selectedProgram}
+        onDelete={handleDeleteProgram}
       />
     </View>
   );
@@ -698,5 +775,51 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     color: COLORS.gray,
     fontStyle: 'italic',
+  },
+  deleteButton: {
+    backgroundColor: COLORS.error,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    marginRight: SPACING.sm,
+  },
+  closeButton: {
+    backgroundColor: COLORS.primary,
+  },
+  confirmationDialog: {
+    width: '80%',
+    maxWidth: 400,
+    padding: SPACING.lg,
+  },
+  confirmationIcon: {
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  confirmationTitle: {
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  confirmationMessage: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  confirmationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.md,
+  },
+  confirmationButton: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.sm,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  confirmButton: {
+    backgroundColor: COLORS.error,
   },
 }); 
