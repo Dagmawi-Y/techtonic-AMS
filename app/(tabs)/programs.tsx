@@ -305,6 +305,12 @@ const ProgramDetailsModal = memo(({
 }) => {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
+  useEffect(() => {
+    if (!isVisible || !program) {
+      setShowDeleteConfirmation(false);
+    }
+  }, [isVisible, program]);
+
   if (!program) return null;
 
   return (
@@ -312,7 +318,10 @@ const ProgramDetailsModal = memo(({
       animationType="fade"
       transparent={true}
       visible={isVisible}
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        setShowDeleteConfirmation(false);
+        onClose();
+      }}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
@@ -389,6 +398,21 @@ const ProgramDetailsModal = memo(({
   );
 });
 
+const EmptyState = memo(() => (
+  <View style={styles.emptyStateContainer}>
+    <MaterialCommunityIcons
+      name="book-open-page-variant"
+      size={80}
+      color={COLORS.secondary}
+      style={styles.emptyStateIcon}
+    />
+    <Text style={styles.emptyStateTitle} bold>No Programs Yet</Text>
+    <Text style={styles.emptyStateMessage}>
+      Click the plus icon in the top right corner to add the first program
+    </Text>
+  </View>
+));
+
 export default function ProgramsScreen() {
   const { action } = useLocalSearchParams();
   const router = useRouter();
@@ -441,18 +465,25 @@ export default function ProgramsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
+        <View style={[
+          styles.searchContainer,
+          programs.length === 0 && styles.searchContainerDisabled
+        ]}>
           <MaterialCommunityIcons
             name="magnify"
             size={24}
-            color={COLORS.primary}
+            color={programs.length === 0 ? COLORS.gray : COLORS.primary}
           />
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              programs.length === 0 && styles.searchInputDisabled
+            ]}
             placeholder="Search programs..."
             placeholderTextColor={COLORS.gray}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            editable={programs.length > 0}
           />
         </View>
         <TouchableOpacity 
@@ -463,31 +494,35 @@ export default function ProgramsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {filteredPrograms.map((program) => (
-          <TouchableOpacity 
-            key={program.id} 
-            style={styles.programCard}
-            onPress={() => handleProgramPress(program)}
-          >
-            <View style={styles.programHeader}>
-              <Text style={styles.programName} bold>{program.name}</Text>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.primary} />
-            </View>
-            <Text style={styles.programDescription}>{program.description}</Text>
-            <View style={styles.programStats}>
-              <View style={styles.stat}>
-                <MaterialCommunityIcons name="clock-outline" size={20} color={COLORS.primary} />
-                <Text style={styles.statText}>{program.duration} Weeks</Text>
+      {programs.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {filteredPrograms.map((program) => (
+            <TouchableOpacity 
+              key={program.id} 
+              style={styles.programCard}
+              onPress={() => handleProgramPress(program)}
+            >
+              <View style={styles.programHeader}>
+                <Text style={styles.programName} bold>{program.name}</Text>
+                <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.primary} />
               </View>
-              <View style={styles.stat}>
-                <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
-                <Text style={styles.statText}>{program.batches.length} Batches</Text>
+              <Text style={styles.programDescription}>{program.description}</Text>
+              <View style={styles.programStats}>
+                <View style={styles.stat}>
+                  <MaterialCommunityIcons name="clock-outline" size={20} color={COLORS.primary} />
+                  <Text style={styles.statText}>{program.duration} Weeks</Text>
+                </View>
+                <View style={styles.stat}>
+                  <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
+                  <Text style={styles.statText}>{program.batches.length} Batches</Text>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
 
       <CreateProgramModal
         isVisible={isCreateModalVisible}
@@ -821,5 +856,35 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: COLORS.error,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  emptyStateIcon: {
+    marginBottom: SPACING.lg,
+    opacity: 0.8,
+  },
+  emptyStateTitle: {
+    fontSize: FONT_SIZES.xl,
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+    textAlign: 'center',
+  },
+  emptyStateMessage: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    maxWidth: 300,
+  },
+  searchContainerDisabled: {
+    backgroundColor: COLORS.background,
+    borderColor: COLORS.border,
+    opacity: 0.7,
+  },
+  searchInputDisabled: {
+    color: COLORS.gray,
   },
 }); 

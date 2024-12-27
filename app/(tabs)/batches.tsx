@@ -384,6 +384,72 @@ const DatePickerComponent = memo(({
   ) : null;
 });
 
+const DeleteConfirmationDialog = memo(({
+  isVisible,
+  batch,
+  onConfirm,
+  onCancel,
+}: {
+  isVisible: boolean;
+  batch: Batch;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) => {
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={isVisible}
+      onRequestClose={onCancel}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContent, styles.confirmationDialog]}>
+          <View style={styles.confirmationIcon}>
+            <MaterialCommunityIcons
+              name="alert-circle-outline"
+              size={48}
+              color={COLORS.error}
+            />
+          </View>
+          <Text style={styles.confirmationTitle} bold>Delete Batch</Text>
+          <Text style={styles.confirmationMessage}>
+            Are you sure you want to delete {batch.name}? This action cannot be undone.
+          </Text>
+          <View style={styles.confirmationButtons}>
+            <TouchableOpacity
+              style={[styles.confirmationButton, styles.cancelButton]}
+              onPress={onCancel}
+            >
+              <Text style={styles.buttonText} bold>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.confirmationButton, styles.confirmButton]}
+              onPress={onConfirm}
+            >
+              <Text style={[styles.buttonText, { color: COLORS.white }]} bold>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+});
+
+const EmptyState = memo(() => (
+  <View style={styles.emptyStateContainer}>
+    <MaterialCommunityIcons
+      name="account-group"
+      size={80}
+      color={COLORS.secondary}
+      style={styles.emptyStateIcon}
+    />
+    <Text style={styles.emptyStateTitle} bold>No Batches Yet</Text>
+    <Text style={styles.emptyStateMessage}>
+      Click the plus icon in the top right corner to add the first batch
+    </Text>
+  </View>
+));
+
 export default function BatchesScreen() {
   const { action } = useLocalSearchParams();
   const router = useRouter();
@@ -402,6 +468,7 @@ export default function BatchesScreen() {
     programs: [] as Program[],
   });
   const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [batchToDelete, setBatchToDelete] = useState<Batch | null>(null);
 
   useEffect(() => {
     if (action === 'create') {
@@ -409,25 +476,16 @@ export default function BatchesScreen() {
     }
   }, [action]);
 
-  const handleDelete = (batchId: string) => {
-    Alert.alert(
-      'Delete Batch',
-      'Are you sure you want to delete this batch?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            setBatches(batches.filter(batch => batch.id !== batchId));
-            setExpandedBatch(null);
-          },
-        },
-      ],
-    );
+  const handleDelete = (batch: Batch) => {
+    setBatchToDelete(batch);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (batchToDelete) {
+      setBatches(batches.filter(b => b.id !== batchToDelete.id));
+      setExpandedBatch(null);
+      setBatchToDelete(null);
+    }
   };
 
   const handleEdit = (batch: Batch) => {
@@ -573,7 +631,7 @@ export default function BatchesScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.deleteButton]}
-                onPress={() => handleDelete(batch.id)}
+                onPress={() => handleDelete(batch)}
               >
                 <MaterialCommunityIcons
                   name="delete"
@@ -690,21 +748,28 @@ export default function BatchesScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
+        <View style={[
+          styles.searchContainer,
+          batches.length === 0 && styles.searchContainerDisabled
+        ]}>
           <MaterialCommunityIcons
             name="magnify"
             size={24}
-            color={COLORS.primary}
+            color={batches.length === 0 ? COLORS.gray : COLORS.primary}
           />
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              batches.length === 0 && styles.searchInputDisabled
+            ]}
             placeholder="Search batches..."
+            placeholderTextColor={COLORS.gray}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor={COLORS.gray}
+            editable={batches.length > 0}
           />
         </View>
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.addButton}
           onPress={() => setCreateModalVisible(true)}
         >
@@ -712,11 +777,15 @@ export default function BatchesScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.batchList}>
-        {filteredBatches.map((batch) => (
-          <BatchCard key={batch.id} batch={batch} />
-        ))}
-      </ScrollView>
+      {batches.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <ScrollView style={styles.batchList} showsVerticalScrollIndicator={false}>
+          {filteredBatches.map((batch) => (
+            <BatchCard key={batch.id} batch={batch} />
+          ))}
+        </ScrollView>
+      )}
 
       <BatchModal
         isEdit={false}
@@ -754,6 +823,15 @@ export default function BatchesScreen() {
         onDateChange={handleDateChange}
         onClose={closeDatePicker}
       />
+
+      {batchToDelete && (
+        <DeleteConfirmationDialog
+          isVisible={true}
+          batch={batchToDelete}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setBatchToDelete(null)}
+        />
+      )}
     </View>
   );
 }
@@ -1038,5 +1116,71 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     fontSize: FONT_SIZES.sm,
     marginTop: SPACING.xs,
+  },
+  confirmationDialog: {
+    width: '80%',
+    maxWidth: 400,
+    padding: SPACING.lg,
+  },
+  confirmationIcon: {
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  confirmationTitle: {
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  confirmationMessage: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  confirmationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.md,
+  },
+  confirmationButton: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.sm,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  confirmButton: {
+    backgroundColor: COLORS.error,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  emptyStateIcon: {
+    marginBottom: SPACING.lg,
+    opacity: 0.8,
+  },
+  emptyStateTitle: {
+    fontSize: FONT_SIZES.xl,
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+    textAlign: 'center',
+  },
+  emptyStateMessage: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    maxWidth: 300,
+  },
+  searchContainerDisabled: {
+    backgroundColor: COLORS.background,
+    borderColor: COLORS.border,
+    opacity: 0.7,
+  },
+  searchInputDisabled: {
+    color: COLORS.gray,
   },
 }); 

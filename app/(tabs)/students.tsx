@@ -811,6 +811,21 @@ const DeleteConfirmationDialog = memo(({
   );
 });
 
+const EmptyState = memo(() => (
+  <View style={styles.emptyStateContainer}>
+    <MaterialCommunityIcons
+      name="account-group-outline"
+      size={80}
+      color={COLORS.secondary}
+      style={styles.emptyStateIcon}
+    />
+    <Text style={styles.emptyStateTitle} bold>No Students Yet</Text>
+    <Text style={styles.emptyStateMessage}>
+      Click the plus icon in the top right corner to add the first student
+    </Text>
+  </View>
+));
+
 // Update the main component to include student selection and details modal
 export default function StudentsScreen() {
   const { action } = useLocalSearchParams();
@@ -891,18 +906,25 @@ export default function StudentsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
+        <View style={[
+          styles.searchContainer,
+          students.length === 0 && styles.searchContainerDisabled
+        ]}>
           <MaterialCommunityIcons
             name="magnify"
             size={24}
-            color={COLORS.primary}
+            color={students.length === 0 ? COLORS.gray : COLORS.primary}
           />
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              students.length === 0 && styles.searchInputDisabled
+            ]}
             placeholder="Search students..."
             placeholderTextColor={COLORS.gray}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            editable={students.length > 0}
           />
         </View>
         <TouchableOpacity 
@@ -913,57 +935,61 @@ export default function StudentsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {filteredStudents.map((student) => (
-          <TouchableOpacity 
-            key={student.id} 
-            style={styles.studentCard}
-            onPress={() => setSelectedStudent(student)}
-          >
-            <View style={styles.studentHeader}>
-              <View>
-                <Text style={styles.studentName} bold>{student.name}</Text>
-                <Text style={styles.studentId}>{student.studentId}</Text>
+      {students.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {filteredStudents.map((student) => (
+            <TouchableOpacity 
+              key={student.id} 
+              style={styles.studentCard}
+              onPress={() => setSelectedStudent(student)}
+            >
+              <View style={styles.studentHeader}>
+                <View>
+                  <Text style={styles.studentName} bold>{student.name}</Text>
+                  <Text style={styles.studentId}>{student.studentId}</Text>
+                </View>
+                <View style={styles.departmentBadge}>
+                  <Text style={styles.departmentText} bold>{student.department}</Text>
+                </View>
               </View>
-              <View style={styles.departmentBadge}>
-                <Text style={styles.departmentText} bold>{student.department}</Text>
+              <View style={styles.studentDetails}>
+                <View style={styles.detailItem}>
+                  <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
+                  <Text style={styles.detailText}>{student.batch?.name || 'No Batch'}</Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <MaterialCommunityIcons name="book-open-variant" size={20} color={COLORS.primary} />
+                  <Text style={styles.detailText}>
+                    {student.programs.length} Program{student.programs.length !== 1 ? 's' : ''}
+                  </Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.studentDetails}>
-              <View style={styles.detailItem}>
-                <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
-                <Text style={styles.detailText}>{student.batch?.name || 'No Batch'}</Text>
+              <View style={styles.quickActions}>
+                <TouchableOpacity
+                  style={[styles.quickActionButton, styles.quickEditButton]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleEditStudent(student);
+                  }}
+                >
+                  <MaterialCommunityIcons name="pencil" size={20} color={COLORS.white} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.quickActionButton, styles.quickDeleteButton]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setStudentToDelete(student);
+                  }}
+                >
+                  <MaterialCommunityIcons name="delete" size={20} color={COLORS.white} />
+                </TouchableOpacity>
               </View>
-              <View style={styles.detailItem}>
-                <MaterialCommunityIcons name="book-open-variant" size={20} color={COLORS.primary} />
-                <Text style={styles.detailText}>
-                  {student.programs.length} Program{student.programs.length !== 1 ? 's' : ''}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.quickActions}>
-              <TouchableOpacity
-                style={[styles.quickActionButton, styles.quickEditButton]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleEditStudent(student);
-                }}
-              >
-                <MaterialCommunityIcons name="pencil" size={20} color={COLORS.white} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.quickActionButton, styles.quickDeleteButton]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  setStudentToDelete(student);
-                }}
-              >
-                <MaterialCommunityIcons name="delete" size={20} color={COLORS.white} />
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
 
       <CreateStudentModal
         isVisible={isCreateModalVisible}
@@ -1464,5 +1490,35 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: COLORS.error,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
+  },
+  emptyStateIcon: {
+    marginBottom: SPACING.lg,
+    opacity: 0.8,
+  },
+  emptyStateTitle: {
+    fontSize: FONT_SIZES.xl,
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+    textAlign: 'center',
+  },
+  emptyStateMessage: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textLight,
+    textAlign: 'center',
+    maxWidth: 300,
+  },
+  searchContainerDisabled: {
+    backgroundColor: COLORS.background,
+    borderColor: COLORS.border,
+    opacity: 0.7,
+  },
+  searchInputDisabled: {
+    color: COLORS.gray,
   },
 }); 
