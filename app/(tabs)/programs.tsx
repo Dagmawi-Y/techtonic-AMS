@@ -20,6 +20,7 @@ interface Program {
   description: string;
   duration: number;
   batches: Batch[];
+  batchCount: number;
   createdBy: string;
   isDeleted: boolean;
   createdAt: string;
@@ -47,6 +48,7 @@ const mockPrograms: Program[] = [
     description: 'Full stack web development with modern technologies',
     duration: 12,
     batches: [mockBatches[0]],
+    batchCount: 1,
     createdBy: 'John Doe',
     isDeleted: false,
     createdAt: '2024-01-01T12:00:00',
@@ -57,6 +59,7 @@ const mockPrograms: Program[] = [
     description: 'Cross-platform mobile app development',
     duration: 16,
     batches: [mockBatches[1]],
+    batchCount: 1,
     createdBy: 'Jane Doe',
     isDeleted: false,
     createdAt: '2025-01-01T12:00:00',
@@ -538,9 +541,16 @@ export default function ProgramsScreen() {
     setSelectedProgram(null); // Close the details modal
   }, []);
 
-  const handleSave = async () => {
+  const validateForm = () => {
     if (!formData.name.trim() || !formData.description.trim() || !formData.duration) {
       Alert.alert('Error', 'Please fill in all required fields');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
       return;
     }
 
@@ -550,20 +560,79 @@ export default function ProgramsScreen() {
         description: formData.description,
         duration: parseInt(formData.duration),
         batches: formData.batches,
-        createdBy: user?.name || 'Unknown',
+        batchCount: formData.batches.length,
+        createdBy: user?.id || '',
         isDeleted: false,
         createdAt: new Date().toISOString(),
       };
 
       if (isEdit && formData.id) {
         await db.collection('programs').doc(formData.id).update(programData);
+        
+        // Update batch-program relationships
+        const oldProgram = programs.find(p => p.id === formData.id);
+        if (oldProgram) {
+          // Remove program from batches that are no longer associated
+          const removedBatches = oldProgram.batches.filter(
+            oldBatch => !formData.batches.find(newBatch => newBatch.id === oldBatch.id)
+          );
+          
+          for (const batch of removedBatches) {
+            const batchRef = db.collection('batches').doc(batch.id);
+            const batchDoc = await batchRef.get();
+            const batchData = batchDoc.exists ? batchDoc.data() : null;
+            if (batchData) {
+              const updatedPrograms = batchData.programs.filter((p: Program) => p.id !== formData.id);
+              await batchRef.update({
+                programs: updatedPrograms,
+                programCount: updatedPrograms.length
+              });
+            }
+          }
+        }
+        
+        // Add program to new batches
+        for (const batch of formData.batches) {
+          const batchRef = db.collection('batches').doc(batch.id);
+          const batchDoc = await batchRef.get();
+          const batchData = batchDoc.exists ? batchDoc.data() : null;
+          if (batchData && !batchData.programs.find((p: Program) => p.id === formData.id)) {
+            const updatedPrograms = [...batchData.programs, {
+              id: formData.id,
+              name: formData.name,
+              description: formData.description
+            }];
+            await batchRef.update({
+              programs: updatedPrograms,
+              programCount: updatedPrograms.length
+            });
+          }
+        }
       } else {
-        await db.collection('programs').add(programData);
+        const docRef = await db.collection('programs').add(programData);
+        
+        // Add program to selected batches
+        for (const batch of formData.batches) {
+          const batchRef = db.collection('batches').doc(batch.id);
+          const batchDoc = await batchRef.get();
+          const batchData = batchDoc.exists ? batchDoc.data() : null;
+          if (batchData) {
+            const updatedPrograms = [...batchData.programs, {
+              id: docRef.id,
+              name: formData.name,
+              description: formData.description
+            }];
+            await batchRef.update({
+              programs: updatedPrograms,
+              programCount: updatedPrograms.length
+            });
+          }
+        }
       }
 
-      await fetchPrograms();
-      setIsModalVisible(false);
       resetForm();
+      setIsModalVisible(false);
+      fetchPrograms();
     } catch (error) {
       console.error('Error saving program:', error);
       Alert.alert('Error', 'Failed to save program');

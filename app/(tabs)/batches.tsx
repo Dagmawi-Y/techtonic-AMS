@@ -18,7 +18,7 @@ import { db } from '../../config/firebase';
 import { useAuthStore } from '../../store/authStore';
 
 interface Program {
-  id: number;
+  id: string;
   name: string;
   description: string;
 }
@@ -33,6 +33,7 @@ interface Batch {
   programs: Program[];
   createdBy: string;
   isDeleted: boolean;
+  createdAt: string;
 }
 
 const getInitialDateForPicker = (dateString: string): Date => {
@@ -506,7 +507,7 @@ export default function BatchesScreen() {
         .where('isDeleted', '==', false)
         .get();
       const fetchedPrograms = programsSnapshot.docs.map(doc => ({
-        id: parseInt(doc.id),
+        id: doc.id,
         name: doc.data().name,
         description: doc.data().description,
       })) as Program[];
@@ -757,8 +758,68 @@ export default function BatchesScreen() {
 
       if (isEdit && formData.id) {
         await db.collection('batches').doc(formData.id).update(batchData);
+        
+        // Update program-batch relationships
+        const oldBatch = batches.find(b => b.id === formData.id);
+        if (oldBatch) {
+          // Remove batch from programs that are no longer associated
+          const removedPrograms = oldBatch.programs.filter(
+            oldProgram => !formData.programs.find(newProgram => newProgram.id === oldProgram.id)
+          );
+          
+          for (const program of removedPrograms) {
+            const programRef = db.collection('programs').doc(program.id.toString());
+            const programDoc = await programRef.get();
+            const programData = programDoc.exists ? programDoc.data() : null;
+            if (programData) {
+              const updatedBatches = programData.batches.filter((b: { id: string }) => b.id !== formData.id);
+              await programRef.update({
+                batches: updatedBatches,
+                batchCount: updatedBatches.length
+              });
+            }
+          }
+        }
+        
+        // Add batch to new programs
+        for (const program of formData.programs) {
+          const programRef = db.collection('programs').doc(program.id.toString());
+          const programDoc = await programRef.get();
+          const programData = programDoc.exists ? programDoc.data() : null;
+          if (programData && !programData.batches?.find((b: { id: string }) => b.id === formData.id)) {
+            const updatedBatches = [...(programData.batches || []), {
+              id: formData.id,
+              name: formData.name,
+              startDate: formData.startDate,
+              endDate: formData.endDate
+            }];
+            await programRef.update({
+              batches: updatedBatches,
+              batchCount: updatedBatches.length
+            });
+          }
+        }
       } else {
-        await db.collection('batches').add(batchData);
+        const docRef = await db.collection('batches').add(batchData);
+        
+        // Add batch to selected programs
+        for (const program of formData.programs) {
+          const programRef = db.collection('programs').doc(program.id.toString());
+          const programDoc = await programRef.get();
+          const programData = programDoc.exists ? programDoc.data() : null;
+          if (programData) {
+            const updatedBatches = [...(programData.batches || []), {
+              id: docRef.id,
+              name: formData.name,
+              startDate: formData.startDate,
+              endDate: formData.endDate
+            }];
+            await programRef.update({
+              batches: updatedBatches,
+              batchCount: updatedBatches.length
+            });
+          }
+        }
       }
 
       resetForm();
