@@ -1,11 +1,11 @@
-import { View, ScrollView, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text } from '../../components';
 import { router, useFocusEffect } from 'expo-router';
 import { db } from '../../config/firebase';
 import { useAuthStore } from '../../store/authStore';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 interface StatCardProps {
   title: string;
@@ -34,6 +34,59 @@ interface Activity {
   timestamp: Date;
 }
 
+const ActivitySkeleton = () => {
+  const shimmerValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const startShimmerAnimation = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerValue, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerValue, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    startShimmerAnimation();
+  }, []);
+
+  const opacity = shimmerValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <View style={styles.activityItem}>
+      <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+      <View style={styles.activityContent}>
+        <Animated.View style={[styles.skeletonText, styles.skeletonTitle, { opacity }]} />
+        <Animated.View style={[styles.skeletonText, styles.skeletonSubtitle, { opacity }]} />
+      </View>
+    </View>
+  );
+};
+
+const EmptyActivity = () => (
+  <View style={styles.emptyContainer}>
+    <MaterialCommunityIcons
+      name="calendar-blank"
+      size={48}
+      color={COLORS.textLight}
+      style={styles.emptyIcon}
+    />
+    <Text style={styles.emptyText}>No recent activity</Text>
+    <Text style={styles.emptySubtext}>Activities will appear here as you use the app</Text>
+  </View>
+);
+
 export default function DashboardScreen() {
   const { user } = useAuthStore();
   const [stats, setStats] = useState<Stats>({
@@ -44,6 +97,7 @@ export default function DashboardScreen() {
   });
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchStats = async () => {
     try {
@@ -102,6 +156,7 @@ export default function DashboardScreen() {
 
   const fetchRecentActivity = async () => {
     try {
+      setIsLoading(true);
       const activities: Activity[] = [];
 
       // Fetch recent attendance records
@@ -168,6 +223,8 @@ export default function DashboardScreen() {
       setRecentActivity(activities.slice(0, 5));
     } catch (error) {
       console.error('Error fetching recent activity:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -305,9 +362,19 @@ export default function DashboardScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle} bold>Recent Activity</Text>
-        {recentActivity.map((activity) => (
-          <ActivityItem key={activity.id} {...activity} />
-        ))}
+        {isLoading ? (
+          <>
+            <ActivitySkeleton />
+            <ActivitySkeleton />
+            <ActivitySkeleton />
+          </>
+        ) : recentActivity.length > 0 ? (
+          recentActivity.map((activity) => (
+            <ActivityItem key={activity.id} {...activity} />
+          ))
+        ) : (
+          <EmptyActivity />
+        )}
       </View>
 
       <View style={{...styles.section, marginBottom: '5%'}}>
@@ -384,7 +451,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: SPACING.lg,
-    height: '12%',
+    minHeight: 100,
     backgroundColor: COLORS.primary,
   },
   welcomeText: {
@@ -402,6 +469,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     padding: SPACING.sm,
     marginTop: -SPACING.xl,
+    minHeight: 160,
   },
   statCard: {
     width: '48%',
@@ -477,5 +545,46 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     marginLeft: SPACING.sm,
     fontSize: FONT_SIZES.md,
+  },
+  skeletonIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.lightGray,
+    marginRight: SPACING.md,
+  },
+  skeletonText: {
+    backgroundColor: COLORS.lightGray,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  skeletonTitle: {
+    width: '70%',
+    height: 16,
+    marginBottom: SPACING.xs,
+  },
+  skeletonSubtitle: {
+    width: '40%',
+    height: 14,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: SPACING.xl,
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.md,
+    ...SHADOWS.small,
+  },
+  emptyIcon: {
+    marginBottom: SPACING.md,
+    opacity: 0.5,
+  },
+  emptyText: {
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.textLight,
+    marginBottom: SPACING.xs,
+  },
+  emptySubtext: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textLight,
+    textAlign: 'center',
   },
 }); 
