@@ -316,32 +316,52 @@ const ProgramSelector = memo(({
   value,
   onSelect,
   disabled,
+  selectedBatch,
 }: {
   value: Program | null;
   onSelect: (program: Program | null) => void;
   disabled: boolean;
+  selectedBatch: Batch | null;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
 
   useEffect(() => {
-    fetchPrograms();
-  }, []);
+    if (selectedBatch) {
+      fetchBatchPrograms();
+    } else {
+      setPrograms([]);
+    }
+  }, [selectedBatch]);
 
-  const fetchPrograms = async () => {
+  const fetchBatchPrograms = async () => {
+    if (!selectedBatch) return;
+    
     try {
-      const programsSnapshot = await db.collection('programs')
-        .where('isDeleted', '==', false)
-        .get();
-      const fetchedPrograms = programsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name,
-        description: doc.data().description,
+      // Get the batch document with its programs
+      const batchDoc = await db.collection('batches').doc(selectedBatch.id).get();
+      const batchData = batchDoc.data();
+      
+      if (!batchData || !batchData.programs || !Array.isArray(batchData.programs)) {
+        console.log('No programs found in batch:', batchData);
+        setPrograms([]);
+        return;
+      }
+
+      // Programs are already in the batch document
+      const fetchedPrograms = batchData.programs.map(program => ({
+        id: program.id,
+        name: program.name,
+        description: program.description,
       })) as Program[];
-      console.log('Fetched programs:', fetchedPrograms);
+
+      console.log('Fetched batch programs:', {
+        batchId: selectedBatch.id,
+        programs: fetchedPrograms
+      });
       setPrograms(fetchedPrograms);
     } catch (error) {
-      console.error('Error fetching programs:', error);
+      console.error('Error fetching batch programs:', error);
       Alert.alert('Error', 'Failed to fetch programs');
     }
   };
@@ -402,7 +422,7 @@ const ProgramSelector = memo(({
             ))
           ) : (
             <View style={styles.filterEmpty}>
-              <Text style={styles.filterEmptyText}>No programs available</Text>
+              <Text style={styles.filterEmptyText}>No programs available for this batch</Text>
             </View>
           )}
         </View>
@@ -760,6 +780,7 @@ export default function AttendanceScreen() {
               value={selectedProgram}
               onSelect={setSelectedProgram}
               disabled={!selectedBatch}
+              selectedBatch={selectedBatch}
             />
           </View>
 
