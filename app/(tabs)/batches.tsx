@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
+import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -438,6 +439,50 @@ const EmptyState = memo(() => (
   </View>
 ));
 
+const BatchSkeleton = () => {
+  const shimmerValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const startShimmerAnimation = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerValue, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerValue, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    startShimmerAnimation();
+  }, []);
+
+  const opacity = shimmerValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <View style={styles.batchCard}>
+      <View style={styles.batchHeader}>
+        <View style={styles.batchHeaderContent}>
+          <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+          <View style={styles.batchHeaderText}>
+            <Animated.View style={[styles.skeletonText, styles.skeletonTitle, { opacity }]} />
+            <Animated.View style={[styles.skeletonText, styles.skeletonSubtitle, { opacity }]} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+};
+
 export default function BatchesScreen() {
   const { action } = useLocalSearchParams();
   const router = useRouter();
@@ -460,6 +505,7 @@ export default function BatchesScreen() {
   const [batchToDelete, setBatchToDelete] = useState<Batch | null>(null);
   const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (action === 'create') {
@@ -527,6 +573,7 @@ export default function BatchesScreen() {
 
   const fetchBatches = async () => {
     try {
+      setIsLoading(true);
       const batchesSnapshot = await db.collection('batches')
         .where('isDeleted', '==', false)
         .get();
@@ -554,6 +601,8 @@ export default function BatchesScreen() {
     } catch (error) {
       console.error('Error fetching batches:', error);
       Alert.alert('Error', 'Failed to fetch batches');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -872,23 +921,23 @@ export default function BatchesScreen() {
       <View style={styles.header}>
         <View style={[
           styles.searchContainer,
-          batches.length === 0 && styles.searchContainerDisabled
+          (isLoading || batches.length === 0) && styles.searchContainerDisabled
         ]}>
           <MaterialCommunityIcons
             name="magnify"
             size={24}
-            color={batches.length === 0 ? COLORS.gray : COLORS.primary}
+            color={(isLoading || batches.length === 0) ? COLORS.gray : COLORS.primary}
           />
           <TextInput
             style={[
               styles.searchInput,
-              batches.length === 0 && styles.searchInputDisabled
+              (isLoading || batches.length === 0) && styles.searchInputDisabled
             ]}
             placeholder="Search batches..."
             placeholderTextColor={COLORS.gray}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            editable={batches.length > 0}
+            editable={!isLoading && batches.length > 0}
           />
         </View>
         <TouchableOpacity 
@@ -899,7 +948,23 @@ export default function BatchesScreen() {
         </TouchableOpacity>
       </View>
 
-      {batches.length === 0 ? (
+      {isLoading ? (
+        <ScrollView
+          style={styles.batchList}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
+          <BatchSkeleton />
+          <BatchSkeleton />
+          <BatchSkeleton />
+        </ScrollView>
+      ) : batches.length === 0 ? (
         <ScrollView
           contentContainerStyle={{ flex: 1 }}
           refreshControl={
@@ -1316,5 +1381,24 @@ const styles = StyleSheet.create({
   },
   searchInputDisabled: {
     color: COLORS.gray,
+  },
+  skeletonIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.lightGray,
+  },
+  skeletonText: {
+    backgroundColor: COLORS.lightGray,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  skeletonTitle: {
+    width: 150,
+    height: 16,
+    marginBottom: SPACING.xs,
+  },
+  skeletonSubtitle: {
+    width: 100,
+    height: 14,
   },
 }); 

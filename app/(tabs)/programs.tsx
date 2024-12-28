@@ -1,5 +1,5 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert, RefreshControl } from 'react-native';
+import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert, RefreshControl, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
@@ -444,6 +444,57 @@ const EmptyState = memo(() => (
   </View>
 ));
 
+const ProgramSkeleton = () => {
+  const shimmerValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const startShimmerAnimation = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerValue, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerValue, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    startShimmerAnimation();
+  }, []);
+
+  const opacity = shimmerValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <View style={styles.programCard}>
+      <View style={styles.programHeader}>
+        <View>
+          <Animated.View style={[styles.skeletonText, styles.skeletonTitle, { opacity }]} />
+          <Animated.View style={[styles.skeletonText, styles.skeletonDescription, { opacity }]} />
+        </View>
+      </View>
+      <View style={styles.programStats}>
+        <View style={styles.stat}>
+          <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+          <Animated.View style={[styles.skeletonText, styles.skeletonStat, { opacity }]} />
+        </View>
+        <View style={styles.stat}>
+          <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+          <Animated.View style={[styles.skeletonText, styles.skeletonStat, { opacity }]} />
+        </View>
+      </View>
+    </View>
+  );
+};
+
 export default function ProgramsScreen() {
   const { user } = useAuthStore();
   const router = useRouter();
@@ -462,6 +513,7 @@ export default function ProgramsScreen() {
     batches: [] as Batch[],
   });
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     return () => {
@@ -516,6 +568,7 @@ export default function ProgramsScreen() {
 
   const fetchPrograms = async () => {
     try {
+      setIsLoading(true);
       const programsSnapshot = await db.collection('programs')
         .where('isDeleted', '==', false)
         .get();
@@ -552,7 +605,7 @@ export default function ProgramsScreen() {
           id: doc.id,
           ...programData,
           batches: programData.batches || [],
-          studentCount: totalStudents // Add student count to program data
+          studentCount: totalStudents
         };
       }) as Program[];
 
@@ -560,6 +613,8 @@ export default function ProgramsScreen() {
     } catch (error) {
       console.error('Error fetching programs:', error);
       Alert.alert('Error', 'Failed to fetch programs');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -726,23 +781,23 @@ export default function ProgramsScreen() {
       <View style={styles.header}>
         <View style={[
           styles.searchContainer,
-          programs.length === 0 && styles.searchContainerDisabled
+          (isLoading || programs.length === 0) && styles.searchContainerDisabled
         ]}>
           <MaterialCommunityIcons
             name="magnify"
             size={24}
-            color={programs.length === 0 ? COLORS.gray : COLORS.primary}
+            color={(isLoading || programs.length === 0) ? COLORS.gray : COLORS.primary}
           />
           <TextInput
             style={[
               styles.searchInput,
-              programs.length === 0 && styles.searchInputDisabled
+              (isLoading || programs.length === 0) && styles.searchInputDisabled
             ]}
             placeholder="Search programs..."
             placeholderTextColor={COLORS.gray}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            editable={programs.length > 0}
+            editable={!isLoading && programs.length > 0}
           />
         </View>
         <TouchableOpacity 
@@ -753,7 +808,23 @@ export default function ProgramsScreen() {
         </TouchableOpacity>
       </View>
 
-      {programs.length === 0 ? (
+      {isLoading ? (
+        <ScrollView
+          style={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
+          <ProgramSkeleton />
+          <ProgramSkeleton />
+          <ProgramSkeleton />
+        </ScrollView>
+      ) : programs.length === 0 ? (
         <ScrollView
           contentContainerStyle={{ flex: 1 }}
           refreshControl={
@@ -1195,5 +1266,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     marginRight: SPACING.sm,
+  },
+  skeletonIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.lightGray,
+  },
+  skeletonText: {
+    backgroundColor: COLORS.lightGray,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  skeletonTitle: {
+    width: 200,
+    height: 20,
+    marginBottom: SPACING.xs,
+  },
+  skeletonDescription: {
+    width: 300,
+    height: 16,
+  },
+  skeletonStat: {
+    width: 80,
+    height: 14,
+    marginLeft: SPACING.xs,
   },
 }); 

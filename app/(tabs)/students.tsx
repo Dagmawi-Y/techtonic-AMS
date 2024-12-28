@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
+import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   Platform,
   Alert,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
@@ -869,6 +870,58 @@ const EmptyState = memo(() => (
   </View>
 ));
 
+const StudentSkeleton = () => {
+  const shimmerValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const startShimmerAnimation = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerValue, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerValue, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    startShimmerAnimation();
+  }, []);
+
+  const opacity = shimmerValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <View style={styles.studentCard}>
+      <View style={styles.studentHeader}>
+        <View>
+          <Animated.View style={[styles.skeletonText, styles.skeletonTitle, { opacity }]} />
+          <Animated.View style={[styles.skeletonText, styles.skeletonSubtitle, { opacity }]} />
+        </View>
+        <Animated.View style={[styles.skeletonText, styles.skeletonBadge, { opacity }]} />
+      </View>
+      <View style={styles.studentDetails}>
+        <View style={styles.detailItem}>
+          <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+          <Animated.View style={[styles.skeletonText, styles.skeletonDetail, { opacity }]} />
+        </View>
+        <View style={styles.detailItem}>
+          <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+          <Animated.View style={[styles.skeletonText, styles.skeletonDetail, { opacity }]} />
+        </View>
+      </View>
+    </View>
+  );
+};
+
 // Update the main component to include student selection and details modal
 export default function StudentsScreen() {
   const { user } = useAuthStore();
@@ -890,6 +943,7 @@ export default function StudentsScreen() {
   });
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchInitialData();
@@ -922,6 +976,7 @@ export default function StudentsScreen() {
 
   const fetchStudents = async () => {
     try {
+      setIsLoading(true);
       const studentsSnapshot = await db.collection('students')
         .where('isDeleted', '==', false)
         .get();
@@ -933,6 +988,8 @@ export default function StudentsScreen() {
     } catch (error) {
       console.error('Error fetching students:', error);
       Alert.alert('Error', 'Failed to fetch students');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1234,23 +1291,23 @@ export default function StudentsScreen() {
       <View style={styles.header}>
         <View style={[
           styles.searchContainer,
-          students.length === 0 && styles.searchContainerDisabled
+          (isLoading || students.length === 0) && styles.searchContainerDisabled
         ]}>
           <MaterialCommunityIcons
             name="magnify"
             size={24}
-            color={students.length === 0 ? COLORS.gray : COLORS.primary}
+            color={(isLoading || students.length === 0) ? COLORS.gray : COLORS.primary}
           />
           <TextInput
             style={[
               styles.searchInput,
-              students.length === 0 && styles.searchInputDisabled
+              (isLoading || students.length === 0) && styles.searchInputDisabled
             ]}
             placeholder="Search students..."
             placeholderTextColor={COLORS.gray}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            editable={students.length > 0}
+            editable={!isLoading && students.length > 0}
           />
         </View>
         <TouchableOpacity 
@@ -1261,7 +1318,23 @@ export default function StudentsScreen() {
         </TouchableOpacity>
       </View>
 
-      {students.length === 0 ? (
+      {isLoading ? (
+        <ScrollView
+          style={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
+          <StudentSkeleton />
+          <StudentSkeleton />
+          <StudentSkeleton />
+        </ScrollView>
+      ) : students.length === 0 ? (
         <ScrollView
           contentContainerStyle={{ flex: 1 }}
           refreshControl={
@@ -1829,5 +1902,34 @@ const styles = StyleSheet.create({
   },
   searchInputDisabled: {
     color: COLORS.gray,
+  },
+  skeletonIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.lightGray,
+  },
+  skeletonText: {
+    backgroundColor: COLORS.lightGray,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  skeletonTitle: {
+    width: 150,
+    height: 16,
+    marginBottom: SPACING.xs,
+  },
+  skeletonSubtitle: {
+    width: 100,
+    height: 14,
+  },
+  skeletonBadge: {
+    width: 60,
+    height: 24,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  skeletonDetail: {
+    width: 120,
+    height: 14,
+    marginLeft: SPACING.xs,
   },
 }); 
