@@ -538,11 +538,11 @@ export default function BatchesScreen() {
   }, []);
 
   // Add useFocusEffect for automatic refetch
-  useFocusEffect(
-    useCallback(() => {
-      fetchBatches();
-    }, [])
-  );
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     fetchBatches();
+  //   }, [])
+  // );
 
   const onRefresh = async () => {
     setRefreshing(true);

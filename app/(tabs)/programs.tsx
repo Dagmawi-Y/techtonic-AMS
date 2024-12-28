@@ -729,11 +729,11 @@ export default function ProgramsScreen() {
   );
 
   // Add useFocusEffect for automatic refetch
-  useFocusEffect(
-    useCallback(() => {
-      fetchPrograms();
-    }, [])
-  );
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     fetchPrograms();
+  //   }, [])
+  // );
 
   return (
     <View style={styles.container}>

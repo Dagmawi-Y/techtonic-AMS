@@ -703,11 +703,11 @@ export default function ReportsScreen() {
   }, []);
 
   // Add useFocusEffect for automatic refetch
-  useFocusEffect(
-    useCallback(() => {
-      fetchInitialData();
-    }, [])
-  );
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     fetchInitialData();
+  //   }, [])
+  // );
 
   const handleExportPDF = useCallback(async (report: Report) => {
     try {
