@@ -1,8 +1,11 @@
-import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text } from '../../components';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { db } from '../../config/firebase';
+import { useAuthStore } from '../../store/authStore';
+import { useState, useCallback, useEffect } from 'react';
 
 interface StatCardProps {
   title: string;
@@ -16,36 +19,200 @@ interface ActivityItemProps {
   time: string;
 }
 
-const mockData = {
-  stats: {
-    batches: 2,
-    programs: 4,
-    students: 45,
-    attendance: 92,
-  },
-  recentActivity: [
-    {
-      id: 1,
-      type: 'attendance' as const,
-      description: 'John Doe marked present in Bootstrap Workshop',
-      time: '2 hours ago',
-    },
-    {
-      id: 2,
-      type: 'registration' as const,
-      description: 'New student Jane Smith registered',
-      time: '4 hours ago',
-    },
-    {
-      id: 3,
-      type: 'batch' as const,
-      description: 'Mobile App Bootcamp session completed',
-      time: '1 day ago',
-    },
-  ],
-};
+interface Stats {
+  batches: number;
+  programs: number;
+  students: number;
+  attendance: number;
+}
+
+interface Activity {
+  id: string;
+  type: 'attendance' | 'registration' | 'batch';
+  description: string;
+  time: string;
+  timestamp: Date;
+}
 
 export default function DashboardScreen() {
+  const { user } = useAuthStore();
+  const [stats, setStats] = useState<Stats>({
+    batches: 0,
+    programs: 0,
+    students: 0,
+    attendance: 0,
+  });
+  const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchStats = async () => {
+    try {
+      // Fetch active batches count
+      const batchesSnapshot = await db.collection('batches')
+        .where('isDeleted', '==', false)
+        .get();
+      const batchesCount = batchesSnapshot.size;
+
+      // Fetch active programs count
+      const programsSnapshot = await db.collection('programs')
+        .where('isDeleted', '==', false)
+        .get();
+      const programsCount = programsSnapshot.size;
+
+      // Fetch active students count
+      const studentsSnapshot = await db.collection('students')
+        .where('isDeleted', '==', false)
+        .get();
+      const studentsCount = studentsSnapshot.size;
+
+      // Calculate average attendance
+      const attendanceSnapshot = await db.collection('attendance')
+        .orderBy('createdAt', 'desc')
+        .limit(100) // Get last 100 attendance records
+        .get();
+
+      let totalAttendance = 0;
+      let totalRecords = 0;
+
+      attendanceSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const records = data.records || [];
+        const presentCount = records.filter((r: any) => r.isPresent).length;
+        const totalCount = records.length;
+        if (totalCount > 0) {
+          totalAttendance += (presentCount / totalCount) * 100;
+          totalRecords++;
+        }
+      });
+
+      const averageAttendance = totalRecords > 0 
+        ? Math.round(totalAttendance / totalRecords) 
+        : 0;
+
+      setStats({
+        batches: batchesCount,
+        programs: programsCount,
+        students: studentsCount,
+        attendance: averageAttendance,
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchRecentActivity = async () => {
+    try {
+      const activities: Activity[] = [];
+
+      // Fetch recent attendance records
+      const attendanceSnapshot = await db.collection('attendance')
+        .orderBy('createdAt', 'desc')
+        .limit(5)
+        .get();
+
+      for (const doc of attendanceSnapshot.docs) {
+        const data = doc.data();
+        const batchDoc = await db.collection('batches').doc(data.batchId).get();
+        const programDoc = await db.collection('programs').doc(data.programId).get();
+        
+        if (batchDoc.exists && programDoc.exists) {
+          const batchName = batchDoc.data()?.name;
+          const programName = programDoc.data()?.name;
+          
+          activities.push({
+            id: doc.id,
+            type: 'attendance',
+            description: `Attendance marked for ${batchName} - ${programName}`,
+            timestamp: data.createdAt ? new Date(data.createdAt) : new Date(),
+            time: getTimeAgo(data.createdAt ? new Date(data.createdAt) : new Date()),
+          });
+        }
+      }
+
+      // Fetch recent student registrations
+      const studentsSnapshot = await db.collection('students')
+        .orderBy('createdAt', 'desc')
+        .limit(5)
+        .get();
+
+      for (const doc of studentsSnapshot.docs) {
+        const data = doc.data();
+        activities.push({
+          id: doc.id,
+          type: 'registration',
+          description: `New student ${data.name} registered`,
+          timestamp: data.createdAt ? new Date(data.createdAt) : new Date(),
+          time: getTimeAgo(data.createdAt ? new Date(data.createdAt) : new Date()),
+        });
+      }
+
+      // Fetch recent batch creations
+      const batchesSnapshot = await db.collection('batches')
+        .orderBy('createdAt', 'desc')
+        .limit(5)
+        .get();
+
+      for (const doc of batchesSnapshot.docs) {
+        const data = doc.data();
+        activities.push({
+          id: doc.id,
+          type: 'batch',
+          description: `New batch ${data.name} created`,
+          timestamp: data.createdAt ? new Date(data.createdAt) : new Date(),
+          time: getTimeAgo(data.createdAt ? new Date(data.createdAt) : new Date()),
+        });
+      }
+
+      // Sort activities by timestamp and take the most recent 5
+      activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      setRecentActivity(activities.slice(0, 5));
+    } catch (error) {
+      console.error('Error fetching recent activity:', error);
+    }
+  };
+
+  const getTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) {
+      return 'Just now';
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    } else {
+      const days = Math.floor(diffInSeconds / 86400);
+      return `${days} day${days > 1 ? 's' : ''} ago`;
+    }
+  };
+
+  const fetchInitialData = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchStats(),
+        fetchRecentActivity(),
+      ]);
+    } catch (error) {
+      console.error('Error fetching initial data:', error);
+    }
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  // Add useFocusEffect for automatic refetch
+  useFocusEffect(
+    useCallback(() => {
+      fetchInitialData();
+    }, [])
+  );
+
   const StatCard = ({ title, value, icon }: StatCardProps) => {
     const handlePress = () => {
       switch (title.toLowerCase()) {
@@ -96,38 +263,49 @@ export default function DashboardScreen() {
   );
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={fetchInitialData}
+          colors={[COLORS.primary]}
+          tintColor={COLORS.primary}
+        />
+      }
+    >
       <View style={styles.header}>
-        <Text style={styles.welcomeText} bold>Welcome, Admin!</Text>
+        <Text style={styles.welcomeText} bold>Welcome, {user?.name || 'Admin'}!</Text>
         <Text style={styles.dateText}>{new Date().toLocaleDateString()}</Text>
       </View>
 
       <View style={styles.statsContainer}>
         <StatCard
           title="Batches"
-          value={mockData.stats.batches}
+          value={stats.batches}
           icon="account-group"
         />
         <StatCard
           title="Programs"
-          value={mockData.stats.programs}
+          value={stats.programs}
           icon="book-open-variant"
         />
         <StatCard
           title="Students"
-          value={mockData.stats.students}
+          value={stats.students}
           icon="account-multiple"
         />
         <StatCard
           title="Attendance %"
-          value={mockData.stats.attendance}
+          value={stats.attendance}
           icon="chart-line"
         />
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle} bold>Recent Activity</Text>
-        {mockData.recentActivity.map((activity) => (
+        {recentActivity.map((activity) => (
           <ActivityItem key={activity.id} {...activity} />
         ))}
       </View>
