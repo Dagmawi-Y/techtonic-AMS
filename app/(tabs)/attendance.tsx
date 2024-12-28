@@ -6,15 +6,18 @@ import {
   ScrollView,
   Modal,
   Platform,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
 import { useRouter } from 'expo-router';
+import { db } from '../../config/firebase';
+import { useAuthStore } from '../../store/authStore';
 
 interface Program {
-  id: number;
+  id: string;
   name: string;
   description: string;
 }
@@ -52,12 +55,12 @@ interface InvalidStudentDialogProps {
 // Reuse mock data from students screen
 const mockPrograms: Program[] = [
   {
-    id: 1,
+    id: '1',
     name: 'Web Development',
     description: 'Full stack web development with modern technologies',
   },
   {
-    id: 2,
+    id: '2',
     name: 'Mobile App Development',
     description: 'Cross-platform mobile app development',
   },
@@ -195,7 +198,31 @@ const BatchSelector = memo(({
   onSelect: (batch: Batch | null) => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const activeBatches = mockBatches.filter(isActiveBatch);
+  const [batches, setBatches] = useState<Batch[]>([]);
+
+  useEffect(() => {
+    fetchBatches();
+  }, []);
+
+  const fetchBatches = async () => {
+    try {
+      const batchesSnapshot = await db.collection('batches')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedBatches = batchesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        startDate: doc.data().startDate,
+        endDate: doc.data().endDate,
+      })) as Batch[];
+      setBatches(fetchedBatches);
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+      Alert.alert('Error', 'Failed to fetch batches');
+    }
+  };
+
+  const activeBatches = batches.filter(isActiveBatch);
 
   return (
     <View style={styles.filterContainer}>
@@ -422,6 +449,7 @@ const InvalidStudentDialog = memo(({ isVisible, onClose, studentName, studentId 
 
 export default function AttendanceScreen() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [showScanner, setShowScanner] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
@@ -430,8 +458,79 @@ export default function AttendanceScreen() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const currentDate = new Date().toLocaleDateString();
   const [invalidStudent, setInvalidStudent] = useState<{ name: string; id: string } | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
 
-  const filteredStudents = mockStudents.filter((student) => {
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    try {
+      await Promise.all([
+        fetchBatches(),
+        fetchPrograms(),
+        fetchStudents(),
+      ]);
+    } catch (error) {
+      console.error('Error fetching initial data:', error);
+      Alert.alert('Error', 'Failed to load data');
+    }
+  };
+
+  const fetchBatches = async () => {
+    try {
+      const batchesSnapshot = await db.collection('batches')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedBatches = batchesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        startDate: doc.data().startDate,
+        endDate: doc.data().endDate,
+      })) as Batch[];
+      setBatches(fetchedBatches);
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+      Alert.alert('Error', 'Failed to fetch batches');
+    }
+  };
+
+  const fetchPrograms = async () => {
+    try {
+      const programsSnapshot = await db.collection('programs')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedPrograms = programsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        description: doc.data().description,
+      })) as Program[];
+      setPrograms(fetchedPrograms);
+    } catch (error) {
+      console.error('Error fetching programs:', error);
+      Alert.alert('Error', 'Failed to fetch programs');
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const studentsSnapshot = await db.collection('students')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedStudents = studentsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Student[];
+      setStudents(fetchedStudents);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      Alert.alert('Error', 'Failed to fetch students');
+    }
+  };
+
+  const filteredStudents = students.filter((student) => {
     const matchesSearch = 
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.studentId.toLowerCase().includes(searchQuery.toLowerCase());
@@ -440,8 +539,8 @@ export default function AttendanceScreen() {
     return matchesSearch && matchesBatch && matchesProgram;
   });
 
-  const handleScan = useCallback((scannedId: string) => {
-    const student = mockStudents.find(s => s.studentId === scannedId);
+  const handleScan = useCallback(async (scannedId: string) => {
+    const student = students.find(s => s.studentId === scannedId);
     if (!student) return;
 
     const isInSelectedBatch = !selectedBatch || student.batch?.id === selectedBatch.id;
@@ -461,7 +560,7 @@ export default function AttendanceScreen() {
         timestamp: new Date(),
       },
     }));
-  }, [selectedBatch, selectedProgram]);
+  }, [selectedBatch, selectedProgram, students]);
 
   const isSelectionValid = selectedBatch && selectedProgram;
 
@@ -506,15 +605,38 @@ export default function AttendanceScreen() {
     setAttendance(newAttendance);
   }, [filteredStudents, isSelectionValid]);
 
-  const handleSubmit = useCallback(() => {
-    // TODO: Submit attendance data to backend
-    console.log('Submitting attendance:', attendance);
-    setAttendance({});
-    setSelectedBatch(null);
-    setSelectedProgram(null);
-    setSearchQuery('');
-    setShowConfirmation(false);
-  }, [attendance]);
+  const handleSubmit = useCallback(async () => {
+    if (!selectedBatch || !selectedProgram || !user) return;
+
+    try {
+      const attendanceData = {
+        batchId: selectedBatch.id,
+        programId: selectedProgram.id,
+        date: new Date().toISOString().split('T')[0],
+        records: Object.entries(attendance).map(([studentId, record]) => ({
+          studentId,
+          isPresent: record.isPresent,
+          markedBy: record.markedBy,
+          timestamp: record.timestamp.toISOString(),
+        })),
+        createdBy: user.id,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Add attendance record to Firestore
+      await db.collection('attendance').add(attendanceData);
+
+      // Reset the form
+      setAttendance({});
+      setSelectedBatch(null);
+      setSelectedProgram(null);
+      setSearchQuery('');
+      setShowConfirmation(false);
+    } catch (error) {
+      console.error('Error submitting attendance:', error);
+      Alert.alert('Error', 'Failed to submit attendance');
+    }
+  }, [attendance, selectedBatch, selectedProgram, user]);
 
   const presentCount = Object.values(attendance).filter(record => record.isPresent).length;
   const absentCount = Object.values(attendance).filter(record => !record.isPresent).length;
