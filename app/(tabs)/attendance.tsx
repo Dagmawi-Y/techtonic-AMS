@@ -7,6 +7,7 @@ import {
   Modal,
   Platform,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -116,12 +117,31 @@ const mockStudents: Student[] = [
   },
 ];
 
+// helper function to convert MM/DD/YYYY to YYYY-MM-DD
+const convertDateFormat = (dateStr: string) => {
+  const [month, day, year] = dateStr.split('/');
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
+
 // helper function to check if batch is active
 const isActiveBatch = (batch: Batch) => {
-  const today = new Date();
-  // Ensure we're using ISO format (YYYY-MM-DD) for reliable date parsing
-  const endDate = new Date(batch.endDate + 'T23:59:59');  // Set to end of day
-  return endDate >= today;
+  try {
+    const today = new Date();
+    // Convert MM/DD/YYYY to YYYY-MM-DD before parsing
+    const isoEndDate = convertDateFormat(batch.endDate);
+    const endDate = new Date(isoEndDate + 'T23:59:59');
+    
+    console.log('Date comparison:', {
+      batch: batch.name,
+      today: today.toISOString(),
+      endDate: endDate.toISOString(),
+      isActive: endDate >= today
+    });
+    return endDate >= today;
+  } catch (error) {
+    console.error('Error checking batch activity:', error);
+    return false;
+  }
 };
 
 // BarcodeScanner component
@@ -209,12 +229,19 @@ const BatchSelector = memo(({
       const batchesSnapshot = await db.collection('batches')
         .where('isDeleted', '==', false)
         .get();
-      const fetchedBatches = batchesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name,
-        startDate: doc.data().startDate,
-        endDate: doc.data().endDate,
-      })) as Batch[];
+      
+      const fetchedBatches = batchesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        // Keep dates in their original MM/DD/YYYY format
+        return {
+          id: doc.id,
+          name: data.name,
+          startDate: data.startDate,
+          endDate: data.endDate,
+        };
+      }) as Batch[];
+      
+      console.log('Fetched batches:', fetchedBatches);
       setBatches(fetchedBatches);
     } catch (error) {
       console.error('Error fetching batches:', error);
@@ -295,6 +322,29 @@ const ProgramSelector = memo(({
   disabled: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [programs, setPrograms] = useState<Program[]>([]);
+
+  useEffect(() => {
+    fetchPrograms();
+  }, []);
+
+  const fetchPrograms = async () => {
+    try {
+      const programsSnapshot = await db.collection('programs')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedPrograms = programsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        description: doc.data().description,
+      })) as Program[];
+      console.log('Fetched programs:', fetchedPrograms);
+      setPrograms(fetchedPrograms);
+    } catch (error) {
+      console.error('Error fetching programs:', error);
+      Alert.alert('Error', 'Failed to fetch programs');
+    }
+  };
 
   return (
     <View style={styles.filterContainer}>
@@ -321,34 +371,40 @@ const ProgramSelector = memo(({
 
       {isOpen && (
         <View style={styles.filterList}>
-          {mockPrograms.map((program) => (
-            <TouchableOpacity
-              key={program.id}
-              style={[
-                styles.filterItem,
-                value?.id === program.id && styles.filterItemSelected
-              ]}
-              onPress={() => {
-                onSelect(program);
-                setIsOpen(false);
-              }}
-            >
-              <View style={styles.filterItemContent}>
-                <Text style={[
-                  styles.filterItemText,
-                  value?.id === program.id && styles.filterItemTextSelected
-                ]} bold>{program.name}</Text>
-                <Text style={styles.filterItemDescription}>{program.description}</Text>
-              </View>
-              {value?.id === program.id && (
-                <MaterialCommunityIcons
-                  name="check"
-                  size={20}
-                  color={COLORS.white}
-                />
-              )}
-            </TouchableOpacity>
-          ))}
+          {programs.length > 0 ? (
+            programs.map((program) => (
+              <TouchableOpacity
+                key={program.id}
+                style={[
+                  styles.filterItem,
+                  value?.id === program.id && styles.filterItemSelected
+                ]}
+                onPress={() => {
+                  onSelect(program);
+                  setIsOpen(false);
+                }}
+              >
+                <View style={styles.filterItemContent}>
+                  <Text style={[
+                    styles.filterItemText,
+                    value?.id === program.id && styles.filterItemTextSelected
+                  ]} bold>{program.name}</Text>
+                  <Text style={styles.filterItemDescription}>{program.description}</Text>
+                </View>
+                {value?.id === program.id && (
+                  <MaterialCommunityIcons
+                    name="check"
+                    size={20}
+                    color={COLORS.white}
+                  />
+                )}
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.filterEmpty}>
+              <Text style={styles.filterEmptyText}>No programs available</Text>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -461,6 +517,7 @@ export default function AttendanceScreen() {
   const [students, setStudents] = useState<Student[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -484,12 +541,19 @@ export default function AttendanceScreen() {
       const batchesSnapshot = await db.collection('batches')
         .where('isDeleted', '==', false)
         .get();
-      const fetchedBatches = batchesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        name: doc.data().name,
-        startDate: doc.data().startDate,
-        endDate: doc.data().endDate,
-      })) as Batch[];
+      
+      const fetchedBatches = batchesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        // Keep dates in their original MM/DD/YYYY format
+        return {
+          id: doc.id,
+          name: data.name,
+          startDate: data.startDate,
+          endDate: data.endDate,
+        };
+      }) as Batch[];
+      
+      console.log('Fetched batches:', fetchedBatches);
       setBatches(fetchedBatches);
     } catch (error) {
       console.error('Error fetching batches:', error);
@@ -648,128 +712,169 @@ export default function AttendanceScreen() {
     }
   }, [selectedBatch]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchInitialData();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      Alert.alert('Error', 'Failed to refresh data');
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.dateContainer}>
-          <MaterialCommunityIcons name="calendar" size={24} color={COLORS.primary} />
-          <Text style={styles.dateText} bold>{currentDate}</Text>
-        </View>
-        <TouchableOpacity 
-          style={styles.historyButton}
-          onPress={() => router.push('/attendance-history')}
-        >
-          <MaterialCommunityIcons name="history" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
-      </View>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
+        <View>
+          <View style={styles.header}>
+            <View style={styles.dateContainer}>
+              <MaterialCommunityIcons name="calendar" size={24} color={COLORS.primary} />
+              <Text style={styles.dateText} bold>{currentDate}</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.historyButton}
+              onPress={() => router.push('/attendance-history')}
+            >
+              <MaterialCommunityIcons name="history" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
 
-      <View style={styles.filters}>
-        <BatchSelector
-          value={selectedBatch}
-          onSelect={setSelectedBatch}
-        />
-        <ProgramSelector
-          value={selectedProgram}
-          onSelect={setSelectedProgram}
-          disabled={!selectedBatch}
-        />
-      </View>
+          <View style={styles.filters}>
+            <BatchSelector
+              value={selectedBatch}
+              onSelect={setSelectedBatch}
+            />
+            <ProgramSelector
+              value={selectedProgram}
+              onSelect={setSelectedProgram}
+              disabled={!selectedBatch}
+            />
+          </View>
 
-      <View style={styles.searchContainer}>
-        <MaterialCommunityIcons
-          name="magnify"
-          size={24}
-          color={COLORS.primary}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search students..."
-          placeholderTextColor={COLORS.gray}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
+          <View style={styles.searchContainer}>
+            <MaterialCommunityIcons
+              name="magnify"
+              size={24}
+              color={COLORS.primary}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search students..."
+              placeholderTextColor={COLORS.gray}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
 
-      <View style={styles.bulkActions}>
-        <TouchableOpacity
-          style={[
-            styles.bulkActionButton,
-            styles.presentButton,
-            !isSelectionValid && styles.disabledButton
-          ]}
-          onPress={() => handleMarkAll(true)}
-          disabled={!isSelectionValid}
-        >
-          <MaterialCommunityIcons name="check-all" size={20} color={COLORS.white} />
-          <Text style={styles.bulkActionText} bold>Mark All Present</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.bulkActionButton,
-            styles.absentButton,
-            !isSelectionValid && styles.disabledButton
-          ]}
-          onPress={() => handleMarkAll(false)}
-          disabled={!isSelectionValid}
-        >
-          <MaterialCommunityIcons name="close" size={20} color={COLORS.white} />
-          <Text style={styles.bulkActionText} bold>Mark All Absent</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {filteredStudents.map((student) => {
-          const record = attendance[student.id];
-          const isPresent = record?.isPresent;
-          return (
+          <View style={styles.bulkActions}>
             <TouchableOpacity
-              key={student.id}
               style={[
-                styles.studentCard,
-                isPresent !== undefined && (isPresent ? styles.presentCard : styles.absentCard),
-                !isSelectionValid && styles.disabledCard
+                styles.bulkActionButton,
+                styles.presentButton,
+                !isSelectionValid && styles.disabledButton
               ]}
-              onPress={() => handleToggleAttendance(student.id)}
+              onPress={() => handleMarkAll(true)}
               disabled={!isSelectionValid}
             >
-              <View style={styles.studentInfo}>
-                <Text style={[
-                  styles.studentName,
-                  !isSelectionValid && styles.disabledText
-                ]} bold>{student.name}</Text>
-                <Text style={[
-                  styles.studentId,
-                  !isSelectionValid && styles.disabledText
-                ]}>{student.studentId}</Text>
-                <View style={styles.studentMeta}>
-                  <Text style={[
-                    styles.metaText,
-                    !isSelectionValid && styles.disabledText
-                  ]}>{student.batch?.name}</Text>
-                  <Text style={[
-                    styles.metaText,
-                    !isSelectionValid && styles.disabledText
-                  ]}>{student.department}</Text>
-                </View>
-              </View>
-              <View style={styles.attendanceStatus}>
-                {record?.markedBy === 'scan' && (
-                  <MaterialCommunityIcons
-                    name="barcode-scan"
-                    size={20}
-                    color={!isSelectionValid ? COLORS.gray : COLORS.textLight}
-                    style={styles.scanIcon}
-                  />
-                )}
-                <MaterialCommunityIcons
-                  name={isPresent ? 'check-circle' : isPresent === false ? 'close-circle' : 'circle-outline'}
-                  size={24}
-                  color={!isSelectionValid ? COLORS.gray : (isPresent ? COLORS.success : isPresent === false ? COLORS.error : COLORS.gray)}
-                />
-              </View>
+              <MaterialCommunityIcons name="check-all" size={20} color={COLORS.white} />
+              <Text style={styles.bulkActionText} bold>Mark All Present</Text>
             </TouchableOpacity>
-          );
-        })}
+            <TouchableOpacity
+              style={[
+                styles.bulkActionButton,
+                styles.absentButton,
+                !isSelectionValid && styles.disabledButton
+              ]}
+              onPress={() => handleMarkAll(false)}
+              disabled={!isSelectionValid}
+            >
+              <MaterialCommunityIcons name="close" size={20} color={COLORS.white} />
+              <Text style={styles.bulkActionText} bold>Mark All Absent</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.content}>
+            {filteredStudents.map((student) => {
+              const record = attendance[student.id];
+              const isPresent = record?.isPresent;
+              return (
+                <TouchableOpacity
+                  key={student.id}
+                  style={[
+                    styles.studentCard,
+                    isPresent !== undefined && (isPresent ? styles.presentCard : styles.absentCard),
+                    !isSelectionValid && styles.disabledCard
+                  ]}
+                  onPress={() => handleToggleAttendance(student.id)}
+                  disabled={!isSelectionValid}
+                >
+                  <View style={styles.studentInfo}>
+                    <Text style={[
+                      styles.studentName,
+                      !isSelectionValid && styles.disabledText
+                    ]} bold>{student.name}</Text>
+                    <Text style={[
+                      styles.studentId,
+                      !isSelectionValid && styles.disabledText
+                    ]}>{student.studentId}</Text>
+                    <View style={styles.studentMeta}>
+                      <Text style={[
+                        styles.metaText,
+                        !isSelectionValid && styles.disabledText
+                      ]}>{student.batch?.name}</Text>
+                      <Text style={[
+                        styles.metaText,
+                        !isSelectionValid && styles.disabledText
+                      ]}>{student.department}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.attendanceStatus}>
+                    {record?.markedBy === 'scan' && (
+                      <MaterialCommunityIcons
+                        name="barcode-scan"
+                        size={20}
+                        color={!isSelectionValid ? COLORS.gray : COLORS.textLight}
+                        style={styles.scanIcon}
+                      />
+                    )}
+                    <MaterialCommunityIcons
+                      name={isPresent ? 'check-circle' : isPresent === false ? 'close-circle' : 'circle-outline'}
+                      size={24}
+                      color={!isSelectionValid ? COLORS.gray : (isPresent ? COLORS.success : isPresent === false ? COLORS.error : COLORS.gray)}
+                    />
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {Object.keys(attendance).length > 0 && (
+          <View style={styles.footer}>
+            <View style={styles.attendanceSummary}>
+              <Text style={styles.summaryText}>Present: {presentCount}</Text>
+              <Text style={styles.summaryText}>Absent: {absentCount}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.submitButton}
+              onPress={() => setShowConfirmation(true)}
+            >
+              <Text style={styles.submitButtonText} bold>Submit Attendance</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       <TouchableOpacity 
@@ -783,21 +888,6 @@ export default function AttendanceScreen() {
       >
         <MaterialCommunityIcons name="barcode-scan" size={24} color={COLORS.white} />
       </TouchableOpacity>
-
-      {Object.keys(attendance).length > 0 && (
-        <View style={styles.footer}>
-          <View style={styles.attendanceSummary}>
-            <Text style={styles.summaryText}>Present: {presentCount}</Text>
-            <Text style={styles.summaryText}>Absent: {absentCount}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.submitButton}
-            onPress={() => setShowConfirmation(true)}
-          >
-            <Text style={styles.submitButtonText} bold>Submit Attendance</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {showScanner && (
         <Modal
@@ -835,6 +925,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
