@@ -18,7 +18,7 @@ import { db } from '../../config/firebase';
 import { useAuthStore } from '../../store/authStore';
 
 interface Program {
-  id: number;
+  id: string;
   name: string;
   description: string;
 }
@@ -60,12 +60,12 @@ const DEPARTMENTS = ['SE', 'IS', 'IT', 'CS', 'DS'];
 
 const mockPrograms: Program[] = [
   {
-    id: 1,
+    id: '1',
     name: 'Web Development',
     description: 'Full stack web development with modern technologies',
   },
   {
-    id: 2,
+    id: '2',
     name: 'Mobile App Development',
     description: 'Cross-platform mobile app development',
   },
@@ -953,7 +953,7 @@ export default function StudentsScreen() {
         .where('isDeleted', '==', false)
         .get();
       const fetchedPrograms = programsSnapshot.docs.map(doc => ({
-        id: parseInt(doc.id),
+        id: doc.id,
         name: doc.data().name,
         description: doc.data().description,
       })) as Program[];
