@@ -74,7 +74,7 @@ const ActivitySkeleton = () => {
   );
 };
 
-const StatSkeleton = () => {
+const StatSkeleton = ({ title, icon }: Omit<StatCardProps, 'value'>) => {
   const shimmerValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -105,9 +105,9 @@ const StatSkeleton = () => {
 
   return (
     <View style={styles.statCard}>
-      <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+      <MaterialCommunityIcons name={icon} size={32} color={COLORS.primary} />
       <Animated.View style={[styles.skeletonText, styles.skeletonStatValue, { opacity }]} />
-      <Animated.View style={[styles.skeletonText, styles.skeletonStatTitle, { opacity }]} />
+      <Text style={styles.statTitle}>{title}</Text>
     </View>
   );
 };
@@ -378,10 +378,22 @@ export default function DashboardScreen() {
       <View style={styles.statsContainer}>
         {isLoading ? (
           <>
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
+            <StatSkeleton
+              title="Batches"
+              icon="account-group"
+            />
+            <StatSkeleton
+              title="Programs"
+              icon="book-open-variant"
+            />
+            <StatSkeleton
+              title="Students"
+              icon="account-multiple"
+            />
+            <StatSkeleton
+              title="Attendance Overall %"
+              icon="chart-line"
+            />
           </>
         ) : (
           <>
