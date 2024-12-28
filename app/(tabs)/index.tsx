@@ -354,7 +354,7 @@ export default function DashboardScreen() {
           icon="account-multiple"
         />
         <StatCard
-          title="Attendance %"
+          title="Attendance Overall %"
           value={stats.attendance}
           icon="chart-line"
         />

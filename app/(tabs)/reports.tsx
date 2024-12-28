@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo, useEffect } from 'react';
+import React, { useState, useCallback, memo, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,6 +8,7 @@ import {
   Platform as RNPlatform,
   Alert,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BarChart, PieChart, LineChart } from 'react-native-gifted-charts';
@@ -522,6 +523,48 @@ const ReportCard = memo(({
   );
 });
 
+const ReportSkeleton = () => {
+  const shimmerValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const startShimmerAnimation = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerValue, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerValue, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    startShimmerAnimation();
+  }, []);
+
+  const opacity = shimmerValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <View style={styles.reportCard}>
+      <View style={styles.reportHeader}>
+        <View>
+          <Animated.View style={[styles.skeletonText, styles.skeletonTitle, { opacity }]} />
+          <Animated.View style={[styles.skeletonText, styles.skeletonSubtitle, { opacity }]} />
+        </View>
+        <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+      </View>
+    </View>
+  );
+};
+
 export default function ReportsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBatch, setSelectedBatch] = useState('');
@@ -530,6 +573,7 @@ export default function ReportsScreen() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchBatches = async () => {
     try {
@@ -640,6 +684,7 @@ export default function ReportsScreen() {
 
   const fetchInitialData = async () => {
     setRefreshing(true);
+    setIsLoading(true);
     try {
       await Promise.all([
         fetchBatches(),
@@ -650,6 +695,7 @@ export default function ReportsScreen() {
       console.error('Error fetching initial data:', error);
     }
     setRefreshing(false);
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -731,18 +777,25 @@ export default function ReportsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
+        <View style={[
+          styles.searchContainer,
+          isLoading && styles.searchContainerDisabled
+        ]}>
           <MaterialCommunityIcons
             name="magnify"
             size={24}
-            color={COLORS.primary}
+            color={isLoading ? COLORS.gray : COLORS.primary}
           />
           <TextInput
-            style={styles.searchInput}
+            style={[
+              styles.searchInput,
+              isLoading && styles.searchInputDisabled
+            ]}
             placeholder="Search reports..."
             placeholderTextColor={COLORS.gray}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            editable={!isLoading}
           />
         </View>
       </View>
@@ -758,8 +811,24 @@ export default function ReportsScreen() {
         />
       </View>
 
-      <ScrollView style={styles.content}>
-        {filteredReports.length > 0 ? (
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={fetchInitialData}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
+        {isLoading ? (
+          <>
+            <ReportSkeleton />
+            <ReportSkeleton />
+            <ReportSkeleton />
+          </>
+        ) : filteredReports.length > 0 ? (
           filteredReports.map(report => (
             <ReportCard
               key={report.id}
@@ -1049,5 +1118,32 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.textLight,
     marginTop: SPACING.xs,
+  },
+  skeletonIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: COLORS.lightGray,
+  },
+  skeletonText: {
+    backgroundColor: COLORS.lightGray,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  skeletonTitle: {
+    width: 200,
+    height: 20,
+    marginBottom: SPACING.xs,
+  },
+  skeletonSubtitle: {
+    width: 150,
+    height: 16,
+  },
+  searchContainerDisabled: {
+    backgroundColor: COLORS.background,
+    borderColor: COLORS.border,
+    opacity: 0.7,
+  },
+  searchInputDisabled: {
+    color: COLORS.gray,
   },
 }); 

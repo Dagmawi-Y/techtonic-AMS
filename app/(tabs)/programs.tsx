@@ -27,47 +27,6 @@ interface Program {
   createdAt: string;
 }
 
-const mockBatches: Batch[] = [
-  {
-    id: '1',
-    name: '2024 Batch',
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-  },
-  {
-    id: '2',
-    name: '2025 Batch',
-    startDate: '2025-01-01',
-    endDate: '2025-12-31',
-  },
-];
-
-const mockPrograms: Program[] = [
-  {
-    id: '1',
-    name: 'Web Development',
-    description: 'Full stack web development with modern technologies',
-    duration: 12,
-    batches: [mockBatches[0]],
-    batchCount: 1,
-    studentCount: 0,
-    createdBy: 'John Doe',
-    isDeleted: false,
-    createdAt: '2024-01-01T12:00:00',
-  },
-  {
-    id: '2',
-    name: 'Mobile App Development',
-    description: 'Cross-platform mobile app development',
-    duration: 16,
-    batches: [mockBatches[1]],
-    batchCount: 1,
-    studentCount: 0,
-    createdBy: 'Jane Doe',
-    isDeleted: false,
-    createdAt: '2025-01-01T12:00:00',
-  },
-];
 
 const BatchSelector = memo(({ 
   batches,
