@@ -21,7 +21,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   }
 }
 
-rootProject.name = 'tt_ams'
+rootProject.name = 'Techtonic MMS'
 
 dependencyResolutionManagement {
   versionCatalogs {
