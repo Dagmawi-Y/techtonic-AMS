@@ -1,9 +1,11 @@
 import React, { useState, useEffect, memo, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { db } from '../../config/firebase';
+import { useAuthStore } from '../../store/authStore';
 
 interface Batch {
   id: string;
@@ -13,11 +15,14 @@ interface Batch {
 }
 
 interface Program {
-  id: number;
+  id: string;
   name: string;
   description: string;
   duration: number;
   batches: Batch[];
+  createdBy: string;
+  isDeleted: boolean;
+  createdAt: string;
 }
 
 const mockBatches: Batch[] = [
@@ -37,18 +42,24 @@ const mockBatches: Batch[] = [
 
 const mockPrograms: Program[] = [
   {
-    id: 1,
+    id: '1',
     name: 'Web Development',
     description: 'Full stack web development with modern technologies',
     duration: 12,
     batches: [mockBatches[0]],
+    createdBy: 'John Doe',
+    isDeleted: false,
+    createdAt: '2024-01-01T12:00:00',
   },
   {
-    id: 2,
+    id: '2',
     name: 'Mobile App Development',
     description: 'Cross-platform mobile app development',
     duration: 16,
     batches: [mockBatches[1]],
+    createdBy: 'Jane Doe',
+    isDeleted: false,
+    createdAt: '2025-01-01T12:00:00',
   },
 ];
 
@@ -142,18 +153,24 @@ const BatchSelector = memo(({
   );
 });
 
-const CreateProgramModal = memo(({ 
+const ProgramModal = memo(({ 
   isVisible, 
   onClose,
   formData,
   onUpdateForm,
-  onNavigateToBatches
+  onNavigateToBatches,
+  onSave,
+  availableBatches,
+  isEdit,
 }: {
   isVisible: boolean;
   onClose: () => void;
   formData: any;
   onUpdateForm: (data: any) => void;
   onNavigateToBatches: () => void;
+  onSave: () => void;
+  availableBatches: Batch[];
+  isEdit: boolean;
 }) => (
   <Modal
     animationType="fade"
@@ -164,7 +181,7 @@ const CreateProgramModal = memo(({
     <View style={styles.modalOverlay}>
       <View style={styles.modalContent}>
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle} bold>Create New Program</Text>
+          <Text style={styles.modalTitle} bold>{isEdit ? 'Edit Program' : 'Create New Program'}</Text>
           <TouchableOpacity onPress={onClose}>
             <MaterialCommunityIcons
               name="close"
@@ -214,7 +231,7 @@ const CreateProgramModal = memo(({
           <View style={styles.formGroup}>
             <Text style={styles.label}>Batches</Text>
             <BatchSelector
-              batches={mockBatches}
+              batches={availableBatches}
               selectedBatches={formData.batches}
               onSelect={(batches) => onUpdateForm({ ...formData, batches })}
               onNavigateToBatches={onNavigateToBatches}
@@ -231,9 +248,11 @@ const CreateProgramModal = memo(({
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.button, styles.saveButton]}
-            onPress={onClose}
+            onPress={onSave}
           >
-            <Text style={[styles.buttonText, { color: COLORS.white }]} bold>Create</Text>
+            <Text style={[styles.buttonText, { color: COLORS.white }]} bold>
+              {isEdit ? 'Save' : 'Create'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -296,12 +315,14 @@ const ProgramDetailsModal = memo(({
   isVisible,
   onClose,
   program,
-  onDelete
+  onDelete,
+  onEdit,
 }: {
   isVisible: boolean;
   onClose: () => void;
   program: Program | null;
-  onDelete: (programId: number) => void;
+  onDelete: (programId: string) => void;
+  onEdit: (program: Program) => void;
 }) => {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
@@ -369,17 +390,21 @@ const ProgramDetailsModal = memo(({
 
           <View style={styles.modalFooter}>
             <TouchableOpacity
+              style={[styles.button, styles.editButton]}
+              onPress={() => {
+                onEdit(program!);
+                onClose();
+              }}
+            >
+              <MaterialCommunityIcons name="pencil" size={20} color={COLORS.white} />
+              <Text style={[styles.buttonText, { color: COLORS.white, marginLeft: SPACING.xs }]} bold>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.button, styles.deleteButton]}
               onPress={() => setShowDeleteConfirmation(true)}
             >
               <MaterialCommunityIcons name="delete" size={20} color={COLORS.white} />
               <Text style={[styles.buttonText, { color: COLORS.white, marginLeft: SPACING.xs }]} bold>Delete</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.closeButton]}
-              onPress={onClose}
-            >
-              <Text style={[styles.buttonText, { color: COLORS.white }]} bold>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -414,48 +439,157 @@ const EmptyState = memo(() => (
 ));
 
 export default function ProgramsScreen() {
-  const { action } = useLocalSearchParams();
+  const { user } = useAuthStore();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isCreateModalVisible, setCreateModalVisible] = useState(false);
-  const [programs, setPrograms] = useState<Program[]>(mockPrograms);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isEdit, setIsEdit] = useState(false);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
   const [formData, setFormData] = useState({
+    id: '',
     name: '',
     description: '',
     duration: '',
     batches: [] as Batch[],
   });
+  const [programToDelete, setProgramToDelete] = useState<Program | null>(null);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (action === 'create') {
-      setCreateModalVisible(true);
+    fetchPrograms();
+    fetchBatches();
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchPrograms(), fetchBatches()]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
     }
-  }, [action]);
-
-  const handleUpdateForm = useCallback((newData: typeof formData) => {
-    setFormData(newData);
+    setRefreshing(false);
   }, []);
 
-  const handleCloseModal = useCallback(() => {
-    setCreateModalVisible(false);
-  }, []);
-
-  const handleNavigateToBatches = useCallback(() => {
-    router.push('/batches');
-  }, [router]);
+  const fetchBatches = async () => {
+    try {
+      const batchesSnapshot = await db.collection('batches')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedBatches = batchesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        startDate: doc.data().startDate,
+        endDate: doc.data().endDate,
+      })) as Batch[];
+      setBatches(fetchedBatches);
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+      Alert.alert('Error', 'Failed to fetch batches');
+    }
+  };
 
   const handleProgramPress = useCallback((program: Program) => {
     setSelectedProgram(program);
   }, []);
 
-  const handleCloseDetailsModal = useCallback(() => {
-    setSelectedProgram(null);
+  const fetchPrograms = async () => {
+    try {
+      const programsSnapshot = await db.collection('programs')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedPrograms = programsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        batches: doc.data().batches || [],
+      })) as Program[];
+      setPrograms(fetchedPrograms);
+    } catch (error) {
+      console.error('Error fetching programs:', error);
+      Alert.alert('Error', 'Failed to fetch programs');
+    }
+  };
+
+  const handleEdit = useCallback((program: Program) => {
+    setIsEdit(true);
+    setFormData({
+      id: program.id,
+      name: program.name,
+      description: program.description,
+      duration: program.duration.toString(),
+      batches: program.batches || [],
+    });
+    setIsModalVisible(true);
+    setSelectedProgram(null); // Close the details modal
   }, []);
 
-  const handleDeleteProgram = useCallback((programId: number) => {
-    setPrograms(prevPrograms => prevPrograms.filter(p => p.id !== programId));
-  }, []);
+  const handleSave = async () => {
+    if (!formData.name.trim() || !formData.description.trim() || !formData.duration) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const programData = {
+        name: formData.name,
+        description: formData.description,
+        duration: parseInt(formData.duration),
+        batches: formData.batches,
+        createdBy: user?.name || 'Unknown',
+        isDeleted: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      if (isEdit && formData.id) {
+        await db.collection('programs').doc(formData.id).update(programData);
+      } else {
+        await db.collection('programs').add(programData);
+      }
+
+      await fetchPrograms();
+      setIsModalVisible(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving program:', error);
+      Alert.alert('Error', 'Failed to save program');
+    }
+  };
+
+  const handleDelete = useCallback((programId: string) => {
+    const program = programs.find(p => p.id === programId);
+    if (program) {
+      setProgramToDelete(program);
+    }
+  }, [programs]);
+
+  const handleDeleteConfirm = async () => {
+    if (programToDelete) {
+      try {
+        await db.collection('programs').doc(programToDelete.id).update({
+          isDeleted: true,
+          deletedAt: new Date().toISOString(),
+        });
+        setPrograms(programs.filter(p => p.id !== programToDelete.id));
+        setProgramToDelete(null);
+        setSelectedProgram(null);
+      } catch (error) {
+        console.error('Error deleting program:', error);
+        Alert.alert('Error', 'Failed to delete program');
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      id: '',
+      name: '',
+      description: '',
+      duration: '',
+      batches: [],
+    });
+    setIsEdit(false);
+  };
 
   const filteredPrograms = programs.filter((program) =>
     program.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -488,16 +622,39 @@ export default function ProgramsScreen() {
         </View>
         <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => setCreateModalVisible(true)}
+          onPress={() => setIsModalVisible(true)}
         >
           <MaterialCommunityIcons name="plus" size={24} color={COLORS.white} />
         </TouchableOpacity>
       </View>
 
       {programs.length === 0 ? (
-        <EmptyState />
+        <ScrollView
+          contentContainerStyle={{ flex: 1 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
+          <EmptyState />
+        </ScrollView>
       ) : (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
           {filteredPrograms.map((program) => (
             <TouchableOpacity 
               key={program.id} 
@@ -524,19 +681,35 @@ export default function ProgramsScreen() {
         </ScrollView>
       )}
 
-      <CreateProgramModal
-        isVisible={isCreateModalVisible}
-        onClose={handleCloseModal}
+      <ProgramModal
+        isVisible={isModalVisible}
+        onClose={() => {
+          setIsModalVisible(false);
+          resetForm();
+        }}
         formData={formData}
-        onUpdateForm={handleUpdateForm}
-        onNavigateToBatches={handleNavigateToBatches}
+        onUpdateForm={setFormData}
+        onNavigateToBatches={() => router.push('/batches')}
+        onSave={handleSave}
+        availableBatches={batches}
+        isEdit={isEdit}
       />
+
+      {programToDelete && (
+        <DeleteConfirmationDialog
+          isVisible={true}
+          program={programToDelete}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setProgramToDelete(null)}
+        />
+      )}
 
       <ProgramDetailsModal
         isVisible={selectedProgram !== null}
-        onClose={handleCloseDetailsModal}
+        onClose={() => setSelectedProgram(null)}
         program={selectedProgram}
-        onDelete={handleDeleteProgram}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
       />
     </View>
   );
@@ -886,5 +1059,12 @@ const styles = StyleSheet.create({
   },
   searchInputDisabled: {
     color: COLORS.gray,
+  },
+  editButton: {
+    backgroundColor: COLORS.secondary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    marginRight: SPACING.sm,
   },
 }); 

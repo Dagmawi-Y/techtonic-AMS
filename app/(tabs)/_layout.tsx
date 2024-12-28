@@ -224,12 +224,13 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   dropdownMenu: {
     position: 'absolute',
-    top: 40,
+    top: 30,
     right: 15,
     backgroundColor: COLORS.white,
     borderRadius: 8,
     padding: 8,
     minWidth: 150,
+    zIndex: 5000,
     ...Platform.select({
       ios: {
         shadowColor: COLORS.black,

@@ -7,6 +7,7 @@ import {
   Modal,
   Alert,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -33,19 +34,6 @@ interface Batch {
   createdBy: string;
   isDeleted: boolean;
 }
-
-const mockPrograms: Program[] = [
-  {
-    id: 1,
-    name: 'Web Development',
-    description: 'Full stack web development with modern technologies',
-  },
-  {
-    id: 2,
-    name: 'Mobile App Development',
-    description: 'Cross-platform mobile app development',
-  },
-];
 
 const getInitialDateForPicker = (dateString: string): Date => {
   if (!dateString) {
@@ -178,6 +166,7 @@ const BatchModal = memo(({
   onClearError,
   onShowStartDatePicker,
   onShowEndDatePicker,
+  availablePrograms,
 }: {
   isEdit: boolean;
   isVisible: boolean;
@@ -190,6 +179,7 @@ const BatchModal = memo(({
   onClearError: (field: keyof FormErrors) => void;
   onShowStartDatePicker: () => void;
   onShowEndDatePicker: () => void;
+  availablePrograms: Program[];
 }) => (
   <Modal
     animationType="fade"
@@ -240,7 +230,7 @@ const BatchModal = memo(({
           <View style={styles.formGroup}>
             <Text style={styles.label}>Programs</Text>
             <ProgramSelector
-              programs={mockPrograms}
+              programs={availablePrograms}
               selectedPrograms={formData.programs || []}
               onSelect={(programs) => {
                 onUpdateForm({ ...formData, programs });
@@ -455,6 +445,7 @@ export default function BatchesScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [formData, setFormData] = useState({
@@ -467,6 +458,7 @@ export default function BatchesScreen() {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [batchToDelete, setBatchToDelete] = useState<Batch | null>(null);
   const { user } = useAuthStore();
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (action === 'create') {
@@ -476,7 +468,35 @@ export default function BatchesScreen() {
 
   useEffect(() => {
     fetchBatches();
+    fetchPrograms();
   }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([fetchBatches(), fetchPrograms()]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    }
+    setRefreshing(false);
+  };
+
+  const fetchPrograms = async () => {
+    try {
+      const programsSnapshot = await db.collection('programs')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedPrograms = programsSnapshot.docs.map(doc => ({
+        id: parseInt(doc.id),
+        name: doc.data().name,
+        description: doc.data().description,
+      })) as Program[];
+      setPrograms(fetchedPrograms);
+    } catch (error) {
+      console.error('Error fetching programs:', error);
+      Alert.alert('Error', 'Failed to fetch programs');
+    }
+  };
 
   const fetchBatches = async () => {
     try {
@@ -810,9 +830,32 @@ export default function BatchesScreen() {
       </View>
 
       {batches.length === 0 ? (
-        <EmptyState />
+        <ScrollView
+          contentContainerStyle={{ flex: 1 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
+          <EmptyState />
+        </ScrollView>
       ) : (
-        <ScrollView style={styles.batchList} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.batchList}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
           {filteredBatches.map((batch) => (
             <BatchCard key={batch.id} batch={batch} />
           ))}
@@ -834,6 +877,7 @@ export default function BatchesScreen() {
         onClearError={clearError}
         onShowStartDatePicker={() => setShowStartDatePicker(true)}
         onShowEndDatePicker={() => setShowEndDatePicker(true)}
+        availablePrograms={programs}
       />
 
       <DatePickerComponent
