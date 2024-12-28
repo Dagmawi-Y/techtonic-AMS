@@ -1091,10 +1091,58 @@ export default function StudentsScreen() {
 
   const handleDeleteStudent = useCallback(async (student: Student) => {
     try {
+      // Mark student as deleted in main students collection
       await db.collection('students').doc(student.id).update({
         isDeleted: true,
         deletedAt: new Date().toISOString(),
       });
+
+      // Update student count in batch
+      if (student.batch) {
+        const batchRef = db.collection('batches').doc(student.batch.id);
+        
+        // Mark student as deleted in batch's students subcollection
+        await batchRef.collection('students').doc(student.id).update({
+          isDeleted: true,
+          deletedAt: new Date().toISOString(),
+        });
+
+        // Update batch's student count
+        const studentsSnapshot = await batchRef.collection('students')
+          .where('isDeleted', '==', false)
+          .get();
+        await batchRef.update({
+          studentCount: studentsSnapshot.size
+        });
+      }
+
+      // Update student count in programs
+      for (const program of student.programs) {
+        const programRef = db.collection('programs').doc(program.id.toString());
+        const programDoc = await programRef.get();
+        
+        if (programDoc.exists) {
+          // Get all batches of this program
+          const programBatches = programDoc.data()?.batches || [];
+          
+          // Calculate new student count for the program
+          let totalStudents = 0;
+          for (const batch of programBatches) {
+            const batchStudentsSnapshot = await db.collection('batches')
+              .doc(batch.id)
+              .collection('students')
+              .where('isDeleted', '==', false)
+              .get();
+            totalStudents += batchStudentsSnapshot.size;
+          }
+
+          // Update program's student count
+          await programRef.update({
+            studentCount: totalStudents
+          });
+        }
+      }
+
       setStudents(prev => prev.filter(s => s.id !== student.id));
       setSelectedStudent(null);
     } catch (error) {
@@ -1106,10 +1154,58 @@ export default function StudentsScreen() {
   const handleDeleteConfirm = async () => {
     if (studentToDelete) {
       try {
+        // Mark student as deleted in main students collection
         await db.collection('students').doc(studentToDelete.id).update({
           isDeleted: true,
           deletedAt: new Date().toISOString(),
         });
+
+        // Update student count in batch
+        if (studentToDelete.batch) {
+          const batchRef = db.collection('batches').doc(studentToDelete.batch.id);
+          
+          // Mark student as deleted in batch's students subcollection
+          await batchRef.collection('students').doc(studentToDelete.id).update({
+            isDeleted: true,
+            deletedAt: new Date().toISOString(),
+          });
+
+          // Update batch's student count
+          const studentsSnapshot = await batchRef.collection('students')
+            .where('isDeleted', '==', false)
+            .get();
+          await batchRef.update({
+            studentCount: studentsSnapshot.size
+          });
+        }
+
+        // Update student count in programs
+        for (const program of studentToDelete.programs) {
+          const programRef = db.collection('programs').doc(program.id.toString());
+          const programDoc = await programRef.get();
+          
+          if (programDoc.exists) {
+            // Get all batches of this program
+            const programBatches = programDoc.data()?.batches || [];
+            
+            // Calculate new student count for the program
+            let totalStudents = 0;
+            for (const batch of programBatches) {
+              const batchStudentsSnapshot = await db.collection('batches')
+                .doc(batch.id)
+                .collection('students')
+                .where('isDeleted', '==', false)
+                .get();
+              totalStudents += batchStudentsSnapshot.size;
+            }
+
+            // Update program's student count
+            await programRef.update({
+              studentCount: totalStudents
+            });
+          }
+        }
+
         setStudents(prev => prev.filter(s => s.id !== studentToDelete.id));
         setStudentToDelete(null);
         setSelectedStudent(null);
