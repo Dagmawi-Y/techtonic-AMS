@@ -6,12 +6,16 @@ import {
   ScrollView,
   Modal,
   Platform,
+  Alert,
+  RefreshControl,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { db } from '../../config/firebase';
+import { useAuthStore } from '../../store/authStore';
 
 interface Program {
   id: number;
@@ -44,6 +48,7 @@ interface FormErrors {
 }
 
 interface FormData {
+  id: string;
   studentId: string;
   name: string;
   department: string;
@@ -411,6 +416,41 @@ const BarcodeScanner = memo(({
   );
 });
 
+const StudentCard = memo(({ 
+  student,
+  onPress,
+}: {
+  student: Student;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity 
+    style={styles.studentCard}
+    onPress={onPress}
+  >
+    <View style={styles.studentHeader}>
+      <View>
+        <Text style={styles.studentName} bold>{student.name}</Text>
+        <Text style={styles.studentId}>{student.studentId}</Text>
+      </View>
+      <View style={styles.departmentBadge}>
+        <Text style={styles.departmentText} bold>{student.department}</Text>
+      </View>
+    </View>
+    <View style={styles.studentDetails}>
+      <View style={styles.detailItem}>
+        <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
+        <Text style={styles.detailText}>{student.batch?.name || 'No Batch'}</Text>
+      </View>
+      <View style={styles.detailItem}>
+        <MaterialCommunityIcons name="book-open-variant" size={20} color={COLORS.primary} />
+        <Text style={styles.detailText}>
+          {student.programs.length} Program{student.programs.length !== 1 ? 's' : ''}
+        </Text>
+      </View>
+    </View>
+  </TouchableOpacity>
+));
+
 const CreateStudentModal = memo(({ 
   isVisible,
   onClose,
@@ -418,7 +458,11 @@ const CreateStudentModal = memo(({
   onUpdateForm,
   onNavigateToBatches,
   onNavigateToPrograms,
-  isEditing = false,
+  onSave,
+  availableBatches,
+  availablePrograms,
+  formErrors,
+  onClearError,
 }: {
   isVisible: boolean;
   onClose: () => void;
@@ -426,7 +470,11 @@ const CreateStudentModal = memo(({
   onUpdateForm: (data: FormData) => void;
   onNavigateToBatches: () => void;
   onNavigateToPrograms: () => void;
-  isEditing?: boolean;
+  onSave: () => void;
+  availableBatches: Batch[];
+  availablePrograms: Program[];
+  formErrors: FormErrors;
+  onClearError: (field: keyof FormErrors) => void;
 }) => {
   const [showScanner, setShowScanner] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -534,7 +582,7 @@ const CreateStudentModal = memo(({
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle} bold>{isEditing ? 'Edit Student' : 'Add Student'}</Text>
+            <Text style={styles.modalTitle} bold>{formData.id ? 'Edit Student' : 'Add Student'}</Text>
             <TouchableOpacity onPress={onClose}>
               <MaterialCommunityIcons
                 name="close"
@@ -604,7 +652,7 @@ const CreateStudentModal = memo(({
             <View style={styles.formGroup}>
               <Text style={styles.label}>Batch</Text>
               <BatchSelector
-                batches={mockBatches}
+                batches={availableBatches}
                 selectedBatch={formData.batch}
                 onSelect={(batch) => handleUpdateForm({ ...formData, batch })}
                 onNavigateToBatches={onNavigateToBatches}
@@ -617,7 +665,7 @@ const CreateStudentModal = memo(({
             <View style={styles.formGroup}>
               <Text style={styles.label}>Programs</Text>
               <ProgramSelector
-                programs={mockPrograms}
+                programs={availablePrograms}
                 selectedPrograms={formData.programs}
                 onSelect={(programs) => handleUpdateForm({ ...formData, programs })}
                 onNavigateToPrograms={onNavigateToPrograms}
@@ -640,7 +688,7 @@ const CreateStudentModal = memo(({
               onPress={handleSave}
             >
               <Text style={[styles.buttonText, { color: COLORS.white }]} bold>
-                {isEditing ? 'Save Changes' : 'Add Student'}
+                {formData.id ? 'Save Changes' : 'Add Student'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -653,17 +701,19 @@ const CreateStudentModal = memo(({
 // StudentDetailsModal component
 const StudentDetailsModal = memo(({ 
   isVisible,
-  student,
   onClose,
+  student,
   onEdit,
   onDelete,
 }: {
   isVisible: boolean;
-  student: Student;
   onClose: () => void;
+  student: Student | null;
   onEdit: (student: Student) => void;
   onDelete: (student: Student) => void;
 }) => {
+  if (!student) return null;
+  
   return (
     <Modal
       animationType="fade"
@@ -828,40 +878,173 @@ const EmptyState = memo(() => (
 
 // Update the main component to include student selection and details modal
 export default function StudentsScreen() {
-  const { action } = useLocalSearchParams();
+  const { user } = useAuthStore();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isCreateModalVisible, setCreateModalVisible] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [students, setStudents] = useState<Student[]>(mockStudents);
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [formData, setFormData] = useState<FormData>({
+    id: '',
     studentId: '',
     name: '',
     department: '',
     batch: null,
     programs: [],
   });
-  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (action === 'create') {
-      setCreateModalVisible(true);
-    }
-  }, [action]);
-
-  const handleUpdateForm = useCallback((newData: FormData) => {
-    setFormData(newData);
+    fetchInitialData();
   }, []);
 
-  const handleCloseModal = useCallback(() => {
-    setCreateModalVisible(false);
+  const fetchInitialData = async () => {
+    await Promise.all([
+      fetchStudents(),
+      fetchBatches(),
+      fetchPrograms(),
+    ]);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchInitialData();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    }
+    setRefreshing(false);
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const studentsSnapshot = await db.collection('students')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedStudents = studentsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Student[];
+      setStudents(fetchedStudents);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      Alert.alert('Error', 'Failed to fetch students');
+    }
+  };
+
+  const fetchBatches = async () => {
+    try {
+      const batchesSnapshot = await db.collection('batches')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedBatches = batchesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+        startDate: doc.data().startDate,
+        endDate: doc.data().endDate,
+      })) as Batch[];
+      setBatches(fetchedBatches);
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+      Alert.alert('Error', 'Failed to fetch batches');
+    }
+  };
+
+  const fetchPrograms = async () => {
+    try {
+      const programsSnapshot = await db.collection('programs')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedPrograms = programsSnapshot.docs.map(doc => ({
+        id: parseInt(doc.id),
+        name: doc.data().name,
+        description: doc.data().description,
+      })) as Program[];
+      setPrograms(fetchedPrograms);
+    } catch (error) {
+      console.error('Error fetching programs:', error);
+      Alert.alert('Error', 'Failed to fetch programs');
+    }
+  };
+
+  const validateForm = (data: FormData): FormErrors => {
+    const errors: FormErrors = {};
+
+    if (!data.studentId.trim()) {
+      errors.studentId = 'Student ID is required';
+    }
+
+    if (!data.name.trim()) {
+      errors.name = 'Name is required';
+    }
+
+    if (!data.department) {
+      errors.department = 'Department is required';
+    }
+
+    if (!data.batch) {
+      errors.batch = 'Batch is required';
+    }
+
+    if (!data.programs.length) {
+      errors.programs = 'Select at least one program';
+    }
+
+    return errors;
+  };
+
+  const handleSave = async () => {
+    const errors = validateForm(formData);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    try {
+      const studentData = {
+        studentId: formData.studentId,
+        name: formData.name,
+        department: formData.department,
+        batch: formData.batch,
+        programs: formData.programs,
+        createdBy: user?.name || 'Unknown',
+        isDeleted: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      await db.collection('students').add(studentData);
+      await fetchStudents();
+      setIsModalVisible(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving student:', error);
+      Alert.alert('Error', 'Failed to save student');
+    }
+  };
+
+  const resetForm = () => {
     setFormData({
+      id: '',
       studentId: '',
       name: '',
       department: '',
       batch: null,
       programs: [],
     });
+    setFormErrors({});
+  };
+
+  const clearError = (field: keyof FormErrors) => {
+    setFormErrors(prev => ({ ...prev, [field]: undefined }));
+  };
+
+  const handleCloseModal = useCallback(() => {
+    setIsModalVisible(false);
+    resetForm();
   }, []);
 
   const handleNavigateToBatches = useCallback(() => {
@@ -874,6 +1057,7 @@ export default function StudentsScreen() {
 
   const handleEditStudent = useCallback((student: Student) => {
     setFormData({
+      id: student.id,
       studentId: student.studentId,
       name: student.name,
       department: student.department,
@@ -881,21 +1065,39 @@ export default function StudentsScreen() {
       programs: student.programs,
     });
     setSelectedStudent(null);
-    setCreateModalVisible(true);
+    setIsModalVisible(true);
   }, []);
 
-  const handleDeleteStudent = useCallback((student: Student) => {
-    setStudents(prev => prev.filter(s => s.id !== student.id));
-    setSelectedStudent(null);
-  }, []);
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (studentToDelete) {
-      setStudents(prev => prev.filter(s => s.id !== studentToDelete.id));
-      setStudentToDelete(null);
+  const handleDeleteStudent = useCallback(async (student: Student) => {
+    try {
+      await db.collection('students').doc(student.id).update({
+        isDeleted: true,
+        deletedAt: new Date().toISOString(),
+      });
+      setStudents(prev => prev.filter(s => s.id !== student.id));
       setSelectedStudent(null);
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      Alert.alert('Error', 'Failed to delete student');
     }
-  }, [studentToDelete]);
+  }, []);
+
+  const handleDeleteConfirm = async () => {
+    if (studentToDelete) {
+      try {
+        await db.collection('students').doc(studentToDelete.id).update({
+          isDeleted: true,
+          deletedAt: new Date().toISOString(),
+        });
+        setStudents(prev => prev.filter(s => s.id !== studentToDelete.id));
+        setStudentToDelete(null);
+        setSelectedStudent(null);
+      } catch (error) {
+        console.error('Error deleting student:', error);
+        Alert.alert('Error', 'Failed to delete student');
+      }
+    }
+  };
 
   const filteredStudents = students.filter((student) =>
     student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -929,87 +1131,70 @@ export default function StudentsScreen() {
         </View>
         <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => setCreateModalVisible(true)}
+          onPress={() => setIsModalVisible(true)}
         >
           <MaterialCommunityIcons name="plus" size={24} color={COLORS.white} />
         </TouchableOpacity>
       </View>
 
       {students.length === 0 ? (
-        <EmptyState />
+        <ScrollView
+          contentContainerStyle={{ flex: 1 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
+          <EmptyState />
+        </ScrollView>
       ) : (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+        >
           {filteredStudents.map((student) => (
-            <TouchableOpacity 
-              key={student.id} 
-              style={styles.studentCard}
+            <StudentCard
+              key={student.id}
+              student={student}
               onPress={() => setSelectedStudent(student)}
-            >
-              <View style={styles.studentHeader}>
-                <View>
-                  <Text style={styles.studentName} bold>{student.name}</Text>
-                  <Text style={styles.studentId}>{student.studentId}</Text>
-                </View>
-                <View style={styles.departmentBadge}>
-                  <Text style={styles.departmentText} bold>{student.department}</Text>
-                </View>
-              </View>
-              <View style={styles.studentDetails}>
-                <View style={styles.detailItem}>
-                  <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
-                  <Text style={styles.detailText}>{student.batch?.name || 'No Batch'}</Text>
-                </View>
-                <View style={styles.detailItem}>
-                  <MaterialCommunityIcons name="book-open-variant" size={20} color={COLORS.primary} />
-                  <Text style={styles.detailText}>
-                    {student.programs.length} Program{student.programs.length !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.quickActions}>
-                <TouchableOpacity
-                  style={[styles.quickActionButton, styles.quickEditButton]}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleEditStudent(student);
-                  }}
-                >
-                  <MaterialCommunityIcons name="pencil" size={18} color={COLORS.white} />
-                </TouchableOpacity>
-                {/* <TouchableOpacity
-                  style={[styles.quickActionButton, styles.quickDeleteButton]}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    setStudentToDelete(student);
-                  }}
-                >
-                  <MaterialCommunityIcons name="delete" size={20} color={COLORS.white} />
-                </TouchableOpacity> */}
-              </View>
-            </TouchableOpacity>
+            />
           ))}
         </ScrollView>
       )}
 
       <CreateStudentModal
-        isVisible={isCreateModalVisible}
+        isVisible={isModalVisible}
         onClose={handleCloseModal}
         formData={formData}
-        onUpdateForm={handleUpdateForm}
+        onUpdateForm={setFormData}
         onNavigateToBatches={handleNavigateToBatches}
         onNavigateToPrograms={handleNavigateToPrograms}
-        isEditing={!!formData.studentId}
+        onSave={handleSave}
+        availableBatches={batches}
+        availablePrograms={programs}
+        formErrors={formErrors}
+        onClearError={clearError}
       />
 
-      {selectedStudent && (
-        <StudentDetailsModal
-          isVisible={true}
-          student={selectedStudent}
-          onClose={() => setSelectedStudent(null)}
-          onEdit={handleEditStudent}
-          onDelete={(student) => setStudentToDelete(student)}
-        />
-      )}
+      <StudentDetailsModal
+        isVisible={selectedStudent !== null}
+        onClose={() => setSelectedStudent(null)}
+        student={selectedStudent}
+        onEdit={handleEditStudent}
+        onDelete={handleDeleteStudent}
+      />
 
       {studentToDelete && (
         <DeleteConfirmationDialog
