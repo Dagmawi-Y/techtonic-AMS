@@ -69,8 +69,8 @@ export default function SignupScreen() {
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.logoContainer}>
             <MaterialCommunityIcons name="school" size={80} color={COLORS.white} />
-            <Text style={styles.title} bold>Join Techtonic Tribe</Text>     
-            <Text style={styles.subtitle}>Create your account</Text>
+            <Text style={styles.title} bold>Techtonic Tribe</Text>     
+            <Text style={styles.subtitle}>Create admin account</Text>
           </View>
 
           <View style={styles.formContainer}>
