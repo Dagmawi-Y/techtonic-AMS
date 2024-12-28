@@ -13,6 +13,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { db } from '../../config/firebase';
+import { useAuthStore } from '../../store/authStore';
 
 interface Program {
   id: number;
@@ -28,6 +30,8 @@ interface Batch {
   programCount: number;
   studentCount: number;
   programs: Program[];
+  createdBy: string;
+  isDeleted: boolean;
 }
 
 const mockPrograms: Program[] = [
@@ -43,36 +47,25 @@ const mockPrograms: Program[] = [
   },
 ];
 
-const mockBatches: Batch[] = [
-  {
-    id: '1',
-    name: '2024 Batch',
-    startDate: '2024-01-01',
-    endDate: '2024-12-31',
-    programCount: 3,
-    studentCount: 25,
-    programs: [mockPrograms[0]],
-  },
-  {
-    id: '2',
-    name: '2025 Batch',
-    startDate: '2025-01-01',
-    endDate: '2025-12-31',
-    programCount: 2,
-    studentCount: 20,
-    programs: [mockPrograms[1]],
-  },
-];
-
 const getInitialDateForPicker = (dateString: string): Date => {
   if (!dateString) {
-    return new Date(); // Default to current date
+    return new Date();
   }
   
-  const [month, day, year] = dateString.split('/').map(num => parseInt(num, 10));
-  const date = new Date(year, month - 1, day);
-  
-  return isNaN(date.getTime()) ? new Date() : date;
+  try {
+    // If it's a new form with today's date from toLocaleDateString()
+    if (dateString === new Date().toLocaleDateString()) {
+      return new Date();
+    }
+
+    // Parse the MM/DD/YYYY format
+    const [month, day, year] = dateString.split('/').map(num => parseInt(num, 10));
+    const date = new Date(year, month - 1, day);
+    
+    return isNaN(date.getTime()) ? new Date() : date;
+  } catch (error) {
+    return new Date(); // Default to today if any parsing error
+  }
 };
 
 const ProgramSelector = memo(({ 
@@ -183,6 +176,8 @@ const BatchModal = memo(({
   onNavigateToPrograms,
   onSave,
   onClearError,
+  onShowStartDatePicker,
+  onShowEndDatePicker,
 }: {
   isEdit: boolean;
   isVisible: boolean;
@@ -193,6 +188,8 @@ const BatchModal = memo(({
   onNavigateToPrograms: () => void;
   onSave: () => void;
   onClearError: (field: keyof FormErrors) => void;
+  onShowStartDatePicker: () => void;
+  onShowEndDatePicker: () => void;
 }) => (
   <Modal
     animationType="fade"
@@ -261,7 +258,7 @@ const BatchModal = memo(({
           <View style={styles.formGroup}>
             <Text style={styles.label}>Start Date</Text>
             <TouchableOpacity
-              onPress={() => onUpdateForm({ ...formData, showStartDatePicker: true })}
+              onPress={onShowStartDatePicker}
               style={styles.dateInput}
             >
               <TextInput
@@ -283,7 +280,7 @@ const BatchModal = memo(({
           <View style={styles.formGroup}>
             <Text style={styles.label}>End Date</Text>
             <TouchableOpacity
-              onPress={() => onUpdateForm({ ...formData, showEndDatePicker: true })}
+              onPress={onShowEndDatePicker}
               style={styles.dateInput}
             >
               <TextInput
@@ -454,62 +451,93 @@ export default function BatchesScreen() {
   const { action } = useLocalSearchParams();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
-  const [isCreateModalVisible, setCreateModalVisible] = useState(false);
-  const [isEditModalVisible, setEditModalVisible] = useState(false);
-  const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
-  const [batches, setBatches] = useState<Batch[]>(mockBatches);
+  const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isEdit, setIsEdit] = useState(false);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [formData, setFormData] = useState({
+    id: '',
     name: '',
-    startDate: '',
-    endDate: '',
-    showStartDatePicker: false,
-    showEndDatePicker: false,
+    startDate: new Date().toLocaleDateString(),
+    endDate: new Date().toLocaleDateString(),
     programs: [] as Program[],
   });
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [batchToDelete, setBatchToDelete] = useState<Batch | null>(null);
+  const { user } = useAuthStore();
 
   useEffect(() => {
     if (action === 'create') {
-      setCreateModalVisible(true);
+      setIsModalVisible(true);
     }
   }, [action]);
+
+  useEffect(() => {
+    fetchBatches();
+  }, []);
+
+  const fetchBatches = async () => {
+    try {
+      const batchesSnapshot = await db.collection('batches')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedBatches = batchesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        programs: doc.data().programs || [],
+        programCount: doc.data().programs?.length || 0,
+        studentCount: doc.data().studentCount || 0,
+      })) as Batch[];
+      setBatches(fetchedBatches);
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+      Alert.alert('Error', 'Failed to fetch batches');
+    }
+  };
 
   const handleDelete = (batch: Batch) => {
     setBatchToDelete(batch);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (batchToDelete) {
-      setBatches(batches.filter(b => b.id !== batchToDelete.id));
-      setExpandedBatch(null);
-      setBatchToDelete(null);
+      try {
+        await db.collection('batches').doc(batchToDelete.id).update({
+          isDeleted: true,
+          deletedAt: new Date().toISOString(),
+        });
+        setBatches(batches.filter(b => b.id !== batchToDelete.id));
+        setExpandedBatchId(null);
+        setBatchToDelete(null);
+      } catch (error) {
+        console.error('Error deleting batch:', error);
+        Alert.alert('Error', 'Failed to delete batch');
+      }
     }
   };
 
   const handleEdit = (batch: Batch) => {
-    setSelectedBatch(batch);
+    setIsEdit(true);
     setFormData({
+      id: batch.id,
       name: batch.name,
       startDate: batch.startDate,
       endDate: batch.endDate,
-      showStartDatePicker: false,
-      showEndDatePicker: false,
       programs: batch.programs,
     });
-    setEditModalVisible(true);
+    setIsModalVisible(true);
   };
 
   const handleSaveEdit = () => {
-    if (selectedBatch) {
+    if (formData.id) {
       setBatches(batches.map(batch =>
-        batch.id === selectedBatch.id
+        batch.id === formData.id
           ? { ...batch, ...formData }
           : batch
       ));
-      setEditModalVisible(false);
-      setSelectedBatch(null);
+      setIsModalVisible(false);
     }
   };
 
@@ -521,27 +549,22 @@ export default function BatchesScreen() {
   };
 
   const handleDateChange = (event: any, selectedDate: Date | undefined, isStartDate: boolean) => {
-    const currentFormData = { ...formData };
-    
     if (Platform.OS === 'android') {
-      currentFormData.showStartDatePicker = false;
-      currentFormData.showEndDatePicker = false;
+      isStartDate ? setShowStartDatePicker(false) : setShowEndDatePicker(false);
     }
 
     if (selectedDate) {
       const formattedDate = formatDate(selectedDate);
-      currentFormData[isStartDate ? 'startDate' : 'endDate'] = formattedDate;
+      setFormData({
+        ...formData,
+        [isStartDate ? 'startDate' : 'endDate']: formattedDate,
+      });
     }
-
-    setFormData(currentFormData);
   };
 
   const closeDatePicker = () => {
-    setFormData(prev => ({
-      ...prev,
-      showStartDatePicker: false,
-      showEndDatePicker: false,
-    }));
+    setShowStartDatePicker(false);
+    setShowEndDatePicker(false);
   };
 
   const filteredBatches = batches.filter((batch) =>
@@ -549,11 +572,11 @@ export default function BatchesScreen() {
   );
 
   const toggleExpand = (batchId: string) => {
-    setExpandedBatch(expandedBatch === batchId ? null : batchId);
+    setExpandedBatchId(expandedBatchId === batchId ? null : batchId);
   };
 
   const BatchCard = ({ batch }: { batch: Batch }) => {
-    const isExpanded = expandedBatch === batch.id;
+    const isExpanded = expandedBatchId === batch.id;
 
     return (
       <View style={styles.batchCard}>
@@ -703,42 +726,51 @@ export default function BatchesScreen() {
     return errors;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const errors = validateForm(formData);
-    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
 
-    if (Object.keys(errors).length === 0) {
-      // No errors, proceed with save
-      if (selectedBatch) {
-        handleSaveEdit();
+    try {
+      const batchData = {
+        name: formData.name,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        programs: formData.programs,
+        programCount: formData.programs.length,
+        studentCount: 0, // Default for new batch
+        createdBy: user?.name || 'Unknown',
+        isDeleted: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      if (formData.id) {
+        await db.collection('batches').doc(formData.id).update(batchData);
       } else {
-        // Handle create
-        const newBatch: Batch = {
-          id: Date.now().toString(), // temporary ID generation
-          name: formData.name,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          programs: formData.programs,
-          programCount: formData.programs.length,
-          studentCount: 0, // New batch starts with 0 students
-        };
-        setBatches([...batches, newBatch]);
-        setCreateModalVisible(false);
-        resetForm();
+        await db.collection('batches').add(batchData);
       }
+
+      await fetchBatches();
+      setIsModalVisible(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error saving batch:', error);
+      Alert.alert('Error', 'Failed to save batch');
     }
   };
 
   const resetForm = () => {
     setFormData({
+      id: '',
       name: '',
-      startDate: '',
-      endDate: '',
-      showStartDatePicker: false,
-      showEndDatePicker: false,
+      startDate: new Date().toLocaleDateString(),
+      endDate: new Date().toLocaleDateString(),
       programs: [],
     });
     setFormErrors({});
+    setIsEdit(false);
   };
 
   const clearError = (field: keyof FormErrors) => {
@@ -771,7 +803,7 @@ export default function BatchesScreen() {
         </View>
         <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => setCreateModalVisible(true)}
+          onPress={() => setIsModalVisible(true)}
         >
           <MaterialCommunityIcons name="plus" size={24} color={COLORS.white} />
         </TouchableOpacity>
@@ -788,10 +820,10 @@ export default function BatchesScreen() {
       )}
 
       <BatchModal
-        isEdit={false}
-        isVisible={isCreateModalVisible}
+        isEdit={isEdit}
+        isVisible={isModalVisible}
         onClose={() => {
-          setCreateModalVisible(false);
+          setIsModalVisible(false);
           resetForm();
         }}
         formData={formData}
@@ -800,25 +832,13 @@ export default function BatchesScreen() {
         onNavigateToPrograms={handleNavigateToPrograms}
         onSave={handleSave}
         onClearError={clearError}
-      />
-      <BatchModal
-        isEdit={true}
-        isVisible={isEditModalVisible}
-        onClose={() => {
-          setEditModalVisible(false);
-          resetForm();
-        }}
-        formData={formData}
-        formErrors={formErrors}
-        onUpdateForm={setFormData}
-        onNavigateToPrograms={handleNavigateToPrograms}
-        onSave={handleSave}
-        onClearError={clearError}
+        onShowStartDatePicker={() => setShowStartDatePicker(true)}
+        onShowEndDatePicker={() => setShowEndDatePicker(true)}
       />
 
       <DatePickerComponent
-        showStartDatePicker={formData.showStartDatePicker}
-        showEndDatePicker={formData.showEndDatePicker}
+        showStartDatePicker={showStartDatePicker}
+        showEndDatePicker={showEndDatePicker}
         formData={formData}
         onDateChange={handleDateChange}
         onClose={closeDatePicker}

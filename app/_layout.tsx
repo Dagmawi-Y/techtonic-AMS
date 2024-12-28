@@ -61,8 +61,8 @@ export default function RootLayout() {
         barStyle="light-content"
       />
       <Stack
-        screenOptions={{
-          headerShown: true,
+        screenOptions={({ route }) => ({
+          headerShown: !route.name.startsWith('(auth)'),
           headerTitle: '',
           headerStyle: {
             backgroundColor: COLORS.primary,
@@ -74,7 +74,7 @@ export default function RootLayout() {
           contentStyle: {
             backgroundColor: COLORS.background,
           },
-        }}
+        })}
       >
         <Stack.Screen
           name="index"
