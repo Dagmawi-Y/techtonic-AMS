@@ -523,13 +523,26 @@ export default function BatchesScreen() {
       const batchesSnapshot = await db.collection('batches')
         .where('isDeleted', '==', false)
         .get();
-      const fetchedBatches = batchesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        programs: doc.data().programs || [],
-        programCount: doc.data().programs?.length || 0,
-        studentCount: doc.data().studentCount || 0,
-      })) as Batch[];
+
+      const batchPromises = batchesSnapshot.docs.map(async doc => {
+        const batchData = doc.data();
+        
+        // Get student count for this batch
+        const studentsSnapshot = await db.collection('batches')
+          .doc(doc.id)
+          .collection('students')
+          .where('isDeleted', '==', false)
+          .get();
+
+        return {
+          id: doc.id,
+          ...batchData,
+          studentCount: studentsSnapshot.size,
+          programs: batchData.programs || [],
+        };
+      });
+
+      const fetchedBatches = await Promise.all(batchPromises) as Batch[];
       setBatches(fetchedBatches);
     } catch (error) {
       console.error('Error fetching batches:', error);

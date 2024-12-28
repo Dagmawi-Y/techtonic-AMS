@@ -21,6 +21,7 @@ interface Program {
   duration: number;
   batches: Batch[];
   batchCount: number;
+  studentCount: number;
   createdBy: string;
   isDeleted: boolean;
   createdAt: string;
@@ -49,6 +50,7 @@ const mockPrograms: Program[] = [
     duration: 12,
     batches: [mockBatches[0]],
     batchCount: 1,
+    studentCount: 0,
     createdBy: 'John Doe',
     isDeleted: false,
     createdAt: '2024-01-01T12:00:00',
@@ -60,6 +62,7 @@ const mockPrograms: Program[] = [
     duration: 16,
     batches: [mockBatches[1]],
     batchCount: 1,
+    studentCount: 0,
     createdBy: 'Jane Doe',
     isDeleted: false,
     createdAt: '2025-01-01T12:00:00',
@@ -516,11 +519,43 @@ export default function ProgramsScreen() {
       const programsSnapshot = await db.collection('programs')
         .where('isDeleted', '==', false)
         .get();
-      const fetchedPrograms = programsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        batches: doc.data().batches || [],
-      })) as Program[];
+
+      // Get all batches to calculate student counts
+      const batchesSnapshot = await db.collection('batches')
+        .where('isDeleted', '==', false)
+        .get();
+      
+      const batchStudentCounts = new Map();
+      
+      // First, get student counts for each batch
+      for (const batchDoc of batchesSnapshot.docs) {
+        const batchData = batchDoc.data();
+        const studentsSnapshot = await db.collection('batches')
+          .doc(batchDoc.id)
+          .collection('students')
+          .where('isDeleted', '==', false)
+          .get();
+        batchStudentCounts.set(batchDoc.id, studentsSnapshot.size);
+      }
+
+      const fetchedPrograms = programsSnapshot.docs.map(doc => {
+        const programData = doc.data();
+        // Calculate total student count across all batches for this program
+        let totalStudents = 0;
+        if (programData.batches) {
+          programData.batches.forEach((batch: { id: string }) => {
+            totalStudents += batchStudentCounts.get(batch.id) || 0;
+          });
+        }
+
+        return {
+          id: doc.id,
+          ...programData,
+          batches: programData.batches || [],
+          studentCount: totalStudents // Add student count to program data
+        };
+      }) as Program[];
+
       setPrograms(fetchedPrograms);
     } catch (error) {
       console.error('Error fetching programs:', error);
@@ -758,10 +793,9 @@ export default function ProgramsScreen() {
                   <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
                   <Text style={styles.statText}>{program.batches.length} Batches</Text>
                 </View>
-                //mock to be implemented
                 <View style={styles.stat}>
                   <MaterialCommunityIcons name="account" size={20} color={COLORS.primary} />
-                  <Text style={styles.statText}>0 Students</Text>
+                  <Text style={styles.statText}>{program.studentCount} Students</Text>
                 </View>
               </View>
             </TouchableOpacity>

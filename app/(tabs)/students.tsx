@@ -492,20 +492,14 @@ const CreateStudentModal = memo(({
     // Student ID validation
     if (!formData.studentId.trim()) {
       newErrors.studentId = 'Student ID is required';
-    } 
-    // else if (!/^[A-Za-z0-9\-_\.]+$/.test(formData.studentId)) {
-    //   newErrors.studentId = 'Student ID can only contain letters, numbers, hyphens, underscores and periods';
-    // }
+    }
 
     // Name validation
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
     } else if (formData.name.length < 2) {
       newErrors.name = 'Name must be at least 2 characters long';
-    } 
-    // else if (!/^[A-Za-z\s]+$/.test(formData.name)) {
-    //   newErrors.name = 'Name can only contain letters and spaces';
-    // }
+    }
 
     // Department validation
     if (!formData.department) {
@@ -547,12 +541,11 @@ const CreateStudentModal = memo(({
     onUpdateForm(newData);
   }, [formData, onUpdateForm]);
 
-  const handleSave = useCallback(() => {
+  const handleSaveClick = useCallback(() => {
     if (validateForm()) {
-      // TODO: Save the student data
-      onClose();
+      onSave();
     }
-  }, [validateForm, onClose]);
+  }, [validateForm, onSave]);
 
   if (showScanner) {
     return (
@@ -685,7 +678,7 @@ const CreateStudentModal = memo(({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.saveButton]}
-              onPress={handleSave}
+              onPress={handleSaveClick}
             >
               <Text style={[styles.buttonText, { color: COLORS.white }]} bold>
                 {formData.id ? 'Save Changes' : 'Add Student'}
@@ -1011,12 +1004,40 @@ export default function StudentsScreen() {
         department: formData.department,
         batch: formData.batch,
         programs: formData.programs,
-        createdBy: user?.name || 'Unknown',
+        createdBy: user?.id || '',
         isDeleted: false,
         createdAt: new Date().toISOString(),
       };
 
-      await db.collection('students').add(studentData);
+      // Add student to the students collection
+      const studentRef = await db.collection('students').add(studentData);
+
+      // Add student to the batch's students subcollection
+      if (formData.batch) {
+        const batchRef = db.collection('batches').doc(formData.batch.id);
+        const studentInBatch = {
+          id: studentRef.id,
+          studentId: formData.studentId,
+          name: formData.name,
+          department: formData.department,
+          createdAt: new Date().toISOString(),
+          isDeleted: false,
+        };
+        
+        await batchRef.collection('students').doc(studentRef.id).set(studentInBatch);
+
+        // Update batch's student count
+        const batchDoc = await batchRef.get();
+        if (batchDoc.exists) {
+          const studentsSnapshot = await batchRef.collection('students')
+            .where('isDeleted', '==', false)
+            .get();
+          await batchRef.update({
+            studentCount: studentsSnapshot.size
+          });
+        }
+      }
+
       await fetchStudents();
       setIsModalVisible(false);
       resetForm();
