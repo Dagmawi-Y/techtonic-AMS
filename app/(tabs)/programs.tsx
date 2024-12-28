@@ -388,7 +388,7 @@ const ProgramDetailsModal = memo(({
               ) : (
                 <Text style={styles.emptyText}>No batches assigned</Text>
               )}
-            </View>
+            </View>  
           </ScrollView>
 
           <View style={styles.modalFooter}>
@@ -757,6 +757,11 @@ export default function ProgramsScreen() {
                 <View style={styles.stat}>
                   <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
                   <Text style={styles.statText}>{program.batches.length} Batches</Text>
+                </View>
+                //mock to be implemented
+                <View style={styles.stat}>
+                  <MaterialCommunityIcons name="account" size={20} color={COLORS.primary} />
+                  <Text style={styles.statText}>0 Students</Text>
                 </View>
               </View>
             </TouchableOpacity>
