@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -490,6 +490,13 @@ export default function BatchesScreen() {
     fetchBatches();
     fetchPrograms();
   }, []);
+
+  // Add useFocusEffect for automatic refetch
+  useFocusEffect(
+    useCallback(() => {
+      fetchBatches();
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

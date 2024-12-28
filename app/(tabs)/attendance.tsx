@@ -13,7 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { db } from '../../config/firebase';
 import { useAuthStore } from '../../store/authStore';
 
@@ -542,6 +542,13 @@ export default function AttendanceScreen() {
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  // Add useFocusEffect for automatic refetch
+  useFocusEffect(
+    useCallback(() => {
+      fetchInitialData();
+    }, [])
+  );
 
   const fetchInitialData = async () => {
     try {

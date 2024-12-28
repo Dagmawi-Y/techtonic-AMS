@@ -714,6 +714,13 @@ export default function ProgramsScreen() {
     program.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Add useFocusEffect for automatic refetch
+  useFocusEffect(
+    useCallback(() => {
+      fetchPrograms();
+    }, [])
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
