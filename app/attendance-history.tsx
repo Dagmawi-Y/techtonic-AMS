@@ -1,53 +1,92 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '../components';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS, FONT_SIZES } from '../constants/theme';
 import { useRouter } from 'expo-router';
+import { db } from '../config/firebase';
 
 interface AttendanceSubmission {
   id: string;
-  date: Date;
+  date: string;
+  batchId: string;
   batchName: string;
+  programId: string;
   programName: string;
   presentCount: number;
   totalCount: number;
   submittedBy: string;
+  createdAt: string;
 }
-
-// Mock data for attendance history
-const mockSubmissions: AttendanceSubmission[] = [
-  {
-    id: '1',
-    date: new Date('2024-01-15'),
-    batchName: '2024 Batch',
-    programName: 'Web Development',
-    presentCount: 18,
-    totalCount: 20,
-    submittedBy: 'John Instructor',
-  },
-  {
-    id: '2',
-    date: new Date('2024-01-14'),
-    batchName: '2024 Batch',
-    programName: 'Mobile App Development',
-    presentCount: 15,
-    totalCount: 15,
-    submittedBy: 'Jane Teacher',
-  },
-  {
-    id: '3',
-    date: new Date('2024-01-13'),
-    batchName: '2025 Batch',
-    programName: 'Web Development',
-    presentCount: 12,
-    totalCount: 15,
-    submittedBy: 'John Instructor',
-  },
-];
 
 export default function AttendanceHistoryScreen() {
   const router = useRouter();
+  const [submissions, setSubmissions] = useState<AttendanceSubmission[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchSubmissions = async () => {
+    try {
+      // Get attendance records ordered by date
+      const attendanceSnapshot = await db.collection('attendance')
+        .orderBy('createdAt', 'desc')
+        .get();
+
+      const fetchedSubmissions = await Promise.all(
+        attendanceSnapshot.docs.map(async (doc) => {
+          const data = doc.data();
+          
+          // Get batch and program names
+          const batchDoc = await db.collection('batches').doc(data.batchId).get();
+          const programDoc = await db.collection('programs').doc(data.programId).get();
+          
+          const batchData = batchDoc.data();
+          const programData = programDoc.data();
+
+          // Calculate present count
+          const presentCount = data.records.filter((r: any) => r.isPresent).length;
+          const totalCount = data.records.length;
+
+          // Get submitter's name
+          const userDoc = await db.collection('users').doc(data.createdBy).get();
+          const userData = userDoc.data();
+
+          return {
+            id: doc.id,
+            date: data.date,
+            batchId: data.batchId,
+            batchName: batchData?.name || 'Unknown Batch',
+            programId: data.programId,
+            programName: programData?.name || 'Unknown Program',
+            presentCount,
+            totalCount,
+            submittedBy: userData?.name || 'Unknown User',
+            createdAt: data.createdAt,
+          } as AttendanceSubmission;
+        })
+      );
+
+      setSubmissions(fetchedSubmissions);
+    } catch (error) {
+      console.error('Error fetching attendance history:', error);
+      Alert.alert('Error', 'Failed to load attendance history');
+    }
+  };
+
+  useEffect(() => {
+    fetchSubmissions();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchSubmissions();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      Alert.alert('Error', 'Failed to refresh data');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -58,8 +97,16 @@ export default function AttendanceHistoryScreen() {
       <ScrollView 
         style={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
       >
-        {mockSubmissions.map((submission) => (
+        {submissions.map((submission) => (
           <TouchableOpacity
             key={submission.id}
             style={styles.card}
@@ -70,7 +117,7 @@ export default function AttendanceHistoryScreen() {
           >
             <View style={styles.cardHeader}>
               <Text style={styles.date} bold>
-                {submission.date.toLocaleDateString('en-US', {
+                {new Date(submission.date).toLocaleDateString('en-US', {
                   weekday: 'short',
                   month: 'short',
                   day: 'numeric',

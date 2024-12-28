@@ -1,65 +1,121 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '../components';
 import { COLORS, SPACING, BORDER_RADIUS, SHADOWS, FONT_SIZES } from '../constants/theme';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { db } from '../config/firebase';
 
 interface AttendanceRecord {
   studentId: string;
   studentName: string;
   isPresent: boolean;
   markedBy: 'manual' | 'scan';
-  timestamp: Date;
+  timestamp: string;
 }
 
 interface AttendanceSubmission {
   id: string;
-  date: Date;
+  date: string;
+  batchId: string;
   batchName: string;
+  programId: string;
   programName: string;
   submittedBy: string;
+  submitterName: string;
   records: AttendanceRecord[];
 }
-
-// Mock data for attendance details
-const mockSubmission: AttendanceSubmission = {
-  id: '1',
-  date: new Date('2024-01-15'),
-  batchName: '2024 Batch',
-  programName: 'Web Development',
-  submittedBy: 'John Instructor',
-  records: [
-    {
-      studentId: 'STU001',
-      studentName: 'John Doe',
-      isPresent: true,
-      markedBy: 'scan',
-      timestamp: new Date('2024-01-15T09:30:00'),
-    },
-    {
-      studentId: 'STU002',
-      studentName: 'Jane Smith',
-      isPresent: true,
-      markedBy: 'manual',
-      timestamp: new Date('2024-01-15T09:35:00'),
-    },
-    {
-      studentId: 'STU003',
-      studentName: 'Mike Johnson',
-      isPresent: false,
-      markedBy: 'manual',
-      timestamp: new Date('2024-01-15T09:35:00'),
-    },
-  ],
-};
 
 export default function AttendanceDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  
-  // In a real app, we would fetch the submission data using the id
-  const submission = mockSubmission;
+  const [submission, setSubmission] = useState<AttendanceSubmission | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchSubmissionDetails = async () => {
+    try {
+      const submissionDoc = await db.collection('attendance').doc(id as string).get();
+      if (!submissionDoc.exists) {
+        Alert.alert('Error', 'Attendance record not found');
+        router.back();
+        return;
+      }
+
+      const data = submissionDoc.data();
+      if (!data) return;
+
+      // Get batch and program details
+      const [batchDoc, programDoc, userDoc] = await Promise.all([
+        db.collection('batches').doc(data.batchId).get(),
+        db.collection('programs').doc(data.programId).get(),
+        db.collection('users').doc(data.createdBy).get(),
+      ]);
+
+      const batchData = batchDoc.data();
+      const programData = programDoc.data();
+      const userData = userDoc.data();
+
+      // Get student names for each record
+      const studentRecords = await Promise.all(
+        data.records.map(async (record: any) => {
+          const studentDoc = await db.collection('students').doc(record.studentId).get();
+          const studentData = studentDoc.data();
+          return {
+            studentId: record.studentId,
+            studentName: studentData?.name || 'Unknown Student',
+            isPresent: record.isPresent,
+            markedBy: record.markedBy,
+            timestamp: record.timestamp,
+          } as AttendanceRecord;
+        })
+      );
+
+      setSubmission({
+        id: submissionDoc.id,
+        date: data.date,
+        batchId: data.batchId,
+        batchName: batchData?.name || 'Unknown Batch',
+        programId: data.programId,
+        programName: programData?.name || 'Unknown Program',
+        submittedBy: data.createdBy,
+        submitterName: userData?.name || 'Unknown User',
+        records: studentRecords,
+      });
+    } catch (error) {
+      console.error('Error fetching attendance details:', error);
+      Alert.alert('Error', 'Failed to load attendance details');
+    }
+  };
+
+  useEffect(() => {
+    fetchSubmissionDetails();
+  }, [id]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchSubmissionDetails();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      Alert.alert('Error', 'Failed to refresh data');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  if (!submission) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title} bold>Attendance Details</Text>
+        </View>
+        <View style={[styles.content, styles.centerContent]}>
+          <Text>Loading...</Text>
+        </View>
+      </View>
+    );
+  }
+
   const presentCount = submission.records.filter(r => r.isPresent).length;
   const totalCount = submission.records.length;
 
@@ -72,11 +128,19 @@ export default function AttendanceDetailsScreen() {
       <ScrollView 
         style={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
       >
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
             <Text style={styles.date} bold>
-              {submission.date.toLocaleDateString('en-US', {
+              {new Date(submission.date).toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -112,7 +176,7 @@ export default function AttendanceDetailsScreen() {
             </View>
             <View style={styles.summaryRow}>
               <MaterialCommunityIcons name="account" size={20} color={COLORS.primary} />
-              <Text style={styles.summaryText}>Submitted by {submission.submittedBy}</Text>
+              <Text style={styles.summaryText}>Submitted by {submission.submitterName}</Text>
             </View>
           </View>
         </View>
@@ -138,7 +202,7 @@ export default function AttendanceDetailsScreen() {
                   />
                   <Text style={styles.metaText}>
                     {record.markedBy === 'scan' ? 'Scanned' : 'Manual'} at{' '}
-                    {record.timestamp.toLocaleTimeString('en-US', {
+                    {new Date(record.timestamp).toLocaleTimeString('en-US', {
                       hour: '2-digit',
                       minute: '2-digit',
                     })}
@@ -178,10 +242,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     ...SHADOWS.small,
   },
-  backButton: {
-    padding: SPACING.sm,
-    marginRight: SPACING.sm,
-  },
   title: {
     fontSize: FONT_SIZES.lg,
     color: COLORS.text,
@@ -189,6 +249,10 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: SPACING.md,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   summaryCard: {
     backgroundColor: COLORS.white,
@@ -244,7 +308,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
   },
   sectionTitle: {
-    fontSize: FONT_SIZES.md,
+    fontSize: FONT_SIZES.lg,
     color: COLORS.text,
     marginBottom: SPACING.md,
   },
@@ -252,10 +316,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   recordInfo: {
     flex: 1,
@@ -263,28 +327,27 @@ const styles = StyleSheet.create({
   studentName: {
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
-    marginBottom: SPACING.xs,
   },
   studentId: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textLight,
-    marginBottom: SPACING.xs,
   },
   recordMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
+    marginTop: SPACING.xs,
   },
   metaText: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.sm,
     color: COLORS.textLight,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
-    paddingVertical: SPACING.xs,
     paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.round,
   },
   presentBadge: {
