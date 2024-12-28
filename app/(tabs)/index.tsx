@@ -74,6 +74,44 @@ const ActivitySkeleton = () => {
   );
 };
 
+const StatSkeleton = () => {
+  const shimmerValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const startShimmerAnimation = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerValue, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerValue, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    };
+
+    startShimmerAnimation();
+  }, []);
+
+  const opacity = shimmerValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <View style={styles.statCard}>
+      <Animated.View style={[styles.skeletonIcon, { opacity }]} />
+      <Animated.View style={[styles.skeletonText, styles.skeletonStatValue, { opacity }]} />
+      <Animated.View style={[styles.skeletonText, styles.skeletonStatTitle, { opacity }]} />
+    </View>
+  );
+};
+
 const EmptyActivity = () => (
   <View style={styles.emptyContainer}>
     <MaterialCommunityIcons
@@ -338,26 +376,37 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.statsContainer}>
-        <StatCard
-          title="Batches"
-          value={stats.batches}
-          icon="account-group"
-        />
-        <StatCard
-          title="Programs"
-          value={stats.programs}
-          icon="book-open-variant"
-        />
-        <StatCard
-          title="Students"
-          value={stats.students}
-          icon="account-multiple"
-        />
-        <StatCard
-          title="Attendance Overall %"
-          value={stats.attendance}
-          icon="chart-line"
-        />
+        {isLoading ? (
+          <>
+            <StatSkeleton />
+            <StatSkeleton />
+            <StatSkeleton />
+            <StatSkeleton />
+          </>
+        ) : (
+          <>
+            <StatCard
+              title="Batches"
+              value={stats.batches}
+              icon="account-group"
+            />
+            <StatCard
+              title="Programs"
+              value={stats.programs}
+              icon="book-open-variant"
+            />
+            <StatCard
+              title="Students"
+              value={stats.students}
+              icon="account-multiple"
+            />
+            <StatCard
+              title="Attendance Overall %"
+              value={stats.attendance}
+              icon="chart-line"
+            />
+          </>
+        )}
       </View>
 
       <View style={styles.section}>
@@ -564,6 +613,15 @@ const styles = StyleSheet.create({
   },
   skeletonSubtitle: {
     width: '40%',
+    height: 14,
+  },
+  skeletonStatValue: {
+    width: '40%',
+    height: 24,
+    marginVertical: SPACING.xs,
+  },
+  skeletonStatTitle: {
+    width: '60%',
     height: 14,
   },
   emptyContainer: {
