@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, memo, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,15 +6,19 @@ import {
   ScrollView,
   Modal,
   Platform as RNPlatform,
+  Alert,
+  RefreshControl,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BarChart, PieChart, LineChart } from 'react-native-gifted-charts';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { db } from '../../config/firebase';
+import { useFocusEffect } from 'expo-router';
 
 interface Program {
-  id: number;
+  id: string;
   name: string;
 }
 
@@ -35,7 +39,7 @@ interface Report {
   id: string;
   batchId: string;
   batchName: string;
-  programId: number;
+  programId: string;
   programName: string;
   startDate: string;
   endDate: string;
@@ -47,153 +51,26 @@ interface Report {
   };
 }
 
-// Mock data for testing
-const mockReports: Report[] = [
-  {
-    id: '1',
-    batchId: '1',
-    batchName: '2024 Batch',
-    programId: 1,
-    programName: 'Web Development',
-    startDate: '2024-01-01',
-    endDate: '2024-01-31',
-    records: [
-      { date: '2024-01-01', present: 18, absent: 2, total: 20, percentage: 90 },
-      { date: '2024-01-02', present: 16, absent: 4, total: 20, percentage: 80 },
-      { date: '2024-01-03', present: 19, absent: 1, total: 20, percentage: 95 },
-      { date: '2024-01-04', present: 17, absent: 3, total: 20, percentage: 85 },
-      { date: '2024-01-05', present: 20, absent: 0, total: 20, percentage: 100 },
-      { date: '2024-01-06', present: 15, absent: 5, total: 20, percentage: 75 },
-      { date: '2024-01-07', present: 18, absent: 2, total: 20, percentage: 90 },
-      { date: '2024-01-08', present: 16, absent: 4, total: 20, percentage: 80 },
-      { date: '2024-01-09', present: 19, absent: 1, total: 20, percentage: 95 },
-      { date: '2024-01-10', present: 17, absent: 3, total: 20, percentage: 85 }
-    ],
-    summary: {
-      totalSessions: 10,
-      averageAttendance: 87.5,
-      totalStudents: 20,
-    },
-  },
-  {
-    id: '2',
-    batchId: '2',
-    batchName: '2025 Batch',
-    programId: 2,
-    programName: 'Mobile App Development',
-    startDate: '2024-01-01',
-    endDate: '2024-01-31',
-    records: [
-      { date: '2024-01-01', present: 22, absent: 3, total: 25, percentage: 88 },
-      { date: '2024-01-02', present: 20, absent: 5, total: 25, percentage: 80 },
-      { date: '2024-01-03', present: 24, absent: 1, total: 25, percentage: 96 },
-      { date: '2024-01-04', present: 21, absent: 4, total: 25, percentage: 84 },
-      { date: '2024-01-05', present: 25, absent: 0, total: 25, percentage: 100 },
-      { date: '2024-01-06', present: 19, absent: 6, total: 25, percentage: 76 },
-      { date: '2024-01-07', present: 23, absent: 2, total: 25, percentage: 92 },
-      { date: '2024-01-08', present: 20, absent: 5, total: 25, percentage: 80 },
-      { date: '2024-01-09', present: 24, absent: 1, total: 25, percentage: 96 },
-      { date: '2024-01-10', present: 22, absent: 3, total: 25, percentage: 88 }
-    ],
-    summary: {
-      totalSessions: 10,
-      averageAttendance: 88,
-      totalStudents: 25,
-    },
-  },
-  {
-    id: '3',
-    batchId: '1',
-    batchName: '2024 Batch',
-    programId: 2,
-    programName: 'Mobile App Development',
-    startDate: '2023-12-01',
-    endDate: '2023-12-31',
-    records: [
-      { date: '2023-12-01', present: 17, absent: 3, total: 20, percentage: 85 },
-      { date: '2023-12-02', present: 19, absent: 1, total: 20, percentage: 95 },
-      { date: '2023-12-03', present: 16, absent: 4, total: 20, percentage: 80 },
-      { date: '2023-12-04', present: 18, absent: 2, total: 20, percentage: 90 },
-      { date: '2023-12-05', present: 20, absent: 0, total: 20, percentage: 100 },
-      { date: '2023-12-06', present: 15, absent: 5, total: 20, percentage: 75 },
-      { date: '2023-12-07', present: 17, absent: 3, total: 20, percentage: 85 },
-      { date: '2023-12-08', present: 19, absent: 1, total: 20, percentage: 95 },
-      { date: '2023-12-09', present: 16, absent: 4, total: 20, percentage: 80 },
-      { date: '2023-12-10', present: 18, absent: 2, total: 20, percentage: 90 }
-    ],
-    summary: {
-      totalSessions: 10,
-      averageAttendance: 87.5,
-      totalStudents: 20,
-    },
-  },
-  {
-    id: '4',
-    batchId: '2',
-    batchName: '2025 Batch',
-    programId: 1,
-    programName: 'Web Development',
-    startDate: '2023-12-01',
-    endDate: '2023-12-31',
-    records: [
-      { date: '2023-12-01', present: 23, absent: 2, total: 25, percentage: 92 },
-      { date: '2023-12-02', present: 24, absent: 1, total: 25, percentage: 96 },
-      { date: '2023-12-03', present: 20, absent: 5, total: 25, percentage: 80 },
-      { date: '2023-12-04', present: 22, absent: 3, total: 25, percentage: 88 },
-      { date: '2023-12-05', present: 25, absent: 0, total: 25, percentage: 100 },
-      { date: '2023-12-06', present: 19, absent: 6, total: 25, percentage: 76 },
-      { date: '2023-12-07', present: 21, absent: 4, total: 25, percentage: 84 },
-      { date: '2023-12-08', present: 24, absent: 1, total: 25, percentage: 96 },
-      { date: '2023-12-09', present: 20, absent: 5, total: 25, percentage: 80 },
-      { date: '2023-12-10', present: 23, absent: 2, total: 25, percentage: 92 }
-    ],
-    summary: {
-      totalSessions: 10,
-      averageAttendance: 88.4,
-      totalStudents: 25,
-    },
-  }
-];
-
-// Add mock data for dropdowns
-const mockBatches: Batch[] = [
-  {
-    id: '1',
-    name: '2024 Batch',
-  },
-  {
-    id: '2',
-    name: '2025 Batch',
-  },
-];
-
-const mockPrograms: Program[] = [
-  {
-    id: 1,
-    name: 'Web Development',
-  },
-  {
-    id: 2,
-    name: 'Mobile App Development',
-  },
-];
-
-const FilterSection = memo(({
+const FilterSection = memo(({ 
   selectedBatch,
   selectedProgram,
   onBatchChange,
   onProgramChange,
+  batches,
+  programs,
 }: {
   selectedBatch: string;
   selectedProgram: string;
   onBatchChange: (batch: string) => void;
   onProgramChange: (program: string) => void;
+  batches: Batch[];
+  programs: Program[];
 }) => {
   const [showBatchDropdown, setShowBatchDropdown] = useState(false);
   const [showProgramDropdown, setShowProgramDropdown] = useState(false);
 
-  const selectedBatchName = mockBatches.find(b => b.id === selectedBatch)?.name || 'Select Batch';
-  const selectedProgramName = mockPrograms.find(p => p.id.toString() === selectedProgram)?.name || 'Select Program';
+  const selectedBatchName = batches.find(b => b.id === selectedBatch)?.name || 'Select Batch';
+  const selectedProgramName = programs.find(p => p.id === selectedProgram)?.name || 'Select Program';
 
   // Close dropdowns when clicking outside
   const handlePressOutside = useCallback(() => {
@@ -225,10 +102,10 @@ const FilterSection = memo(({
           <>
             <TouchableOpacity 
               style={StyleSheet.absoluteFill} 
-              onPress={handlePressOutside} 
+              onPress={() => setShowBatchDropdown(false)} 
             />
             <ScrollView style={styles.dropdownList} bounces={false}>
-              {mockBatches.map(batch => (
+              {batches.map(batch => (
                 <TouchableOpacity
                   key={batch.id}
                   style={[
@@ -279,25 +156,25 @@ const FilterSection = memo(({
           <>
             <TouchableOpacity 
               style={StyleSheet.absoluteFill} 
-              onPress={handlePressOutside} 
+              onPress={() => setShowProgramDropdown(false)} 
             />
             <ScrollView style={styles.dropdownList} bounces={false}>
-              {mockPrograms.map(program => (
+              {programs.map(program => (
                 <TouchableOpacity
                   key={program.id}
                   style={[
                     styles.dropdownItem,
-                    selectedProgram === program.id.toString() && styles.dropdownItemSelected
+                    selectedProgram === program.id && styles.dropdownItemSelected
                   ]}
                   onPress={() => {
-                    onProgramChange(program.id.toString());
+                    onProgramChange(program.id);
                     setShowProgramDropdown(false);
                   }}
                 >
                   <Text 
                     style={[
                       styles.dropdownItemText,
-                      selectedProgram === program.id.toString() && styles.dropdownItemTextSelected
+                      selectedProgram === program.id && styles.dropdownItemTextSelected
                     ]} 
                     numberOfLines={1}
                     bold
@@ -526,25 +403,159 @@ export default function ReportsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBatch, setSelectedBatch] = useState('');
   const [selectedProgram, setSelectedProgram] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchBatches = async () => {
+    try {
+      const batchesSnapshot = await db.collection('batches')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedBatches = batchesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+      })) as Batch[];
+      setBatches(fetchedBatches);
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+      Alert.alert('Error', 'Failed to fetch batches');
+    }
+  };
+
+  const fetchPrograms = async () => {
+    try {
+      const programsSnapshot = await db.collection('programs')
+        .where('isDeleted', '==', false)
+        .get();
+      const fetchedPrograms = programsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name,
+      })) as Program[];
+      setPrograms(fetchedPrograms);
+    } catch (error) {
+      console.error('Error fetching programs:', error);
+      Alert.alert('Error', 'Failed to fetch programs');
+    }
+  };
+
+  const fetchReports = async () => {
+    try {
+      const attendanceSnapshot = await db.collection('attendance')
+        .orderBy('createdAt', 'desc')
+        .get();
+
+      const reportMap = new Map<string, Report>();
+
+      for (const doc of attendanceSnapshot.docs) {
+        const data = doc.data();
+        const batchId = data.batchId;
+        const programId = data.programId;
+        const date = data.date;
+
+        // Get batch and program details
+        const batchDoc = await db.collection('batches').doc(batchId).get();
+        const programDoc = await db.collection('programs').doc(programId).get();
+        
+        if (!batchDoc.exists || !programDoc.exists) continue;
+
+        const batchData = batchDoc.data();
+        const programData = programDoc.data();
+
+        const reportKey = `${batchId}-${programId}`;
+        let report = reportMap.get(reportKey);
+
+        if (!report) {
+          report = {
+            id: doc.id,
+            batchId,
+            batchName: batchData?.name || '',
+            programId,
+            programName: programData?.name || '',
+            startDate: date,
+            endDate: date,
+            records: [],
+            summary: {
+              totalSessions: 0,
+              averageAttendance: 0,
+              totalStudents: batchData?.studentCount || 0,
+            },
+          };
+          reportMap.set(reportKey, report);
+        }
+
+        // Update date range
+        if (date < report.startDate) report.startDate = date;
+        if (date > report.endDate) report.endDate = date;
+
+        // Calculate attendance for this session
+        const presentCount = data.records.filter((r: any) => r.isPresent).length;
+        const totalCount = data.records.length;
+        const absentCount = totalCount - presentCount;
+        const percentage = totalCount > 0 ? (presentCount / totalCount) * 100 : 0;
+
+        report.records.push({
+          date,
+          present: presentCount,
+          absent: absentCount,
+          total: totalCount,
+          percentage,
+        });
+
+        // Update summary
+        report.summary.totalSessions = report.records.length;
+        report.summary.averageAttendance = report.records.reduce((sum, r) => sum + r.percentage, 0) / report.records.length;
+      }
+
+      setReports(Array.from(reportMap.values()));
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      Alert.alert('Error', 'Failed to fetch reports');
+    }
+  };
+
+  const fetchInitialData = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchBatches(),
+        fetchPrograms(),
+        fetchReports(),
+      ]);
+    } catch (error) {
+      console.error('Error fetching initial data:', error);
+    }
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  // Add useFocusEffect for automatic refetch
+  useFocusEffect(
+    useCallback(() => {
+      fetchInitialData();
+    }, [])
+  );
 
   const handleExportPDF = useCallback(() => {
     // TODO: Implement PDF export
-    console.log('Exporting PDF...');
+    Alert.alert('Coming Soon', 'PDF export will be available in a future update');
   }, []);
 
   const handleExportCSV = useCallback(() => {
     // TODO: Implement CSV export
-    console.log('Exporting CSV...');
+    Alert.alert('Coming Soon', 'CSV export will be available in a future update');
   }, []);
 
-  const filteredReports = mockReports.filter(report => {
+  const filteredReports = reports.filter(report => {
     const matchesSearch = 
       report.batchName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       report.programName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesBatch = !selectedBatch || report.batchId === selectedBatch;
-    const matchesProgram = !selectedProgram || report.programId.toString() === selectedProgram;
+    const matchesProgram = !selectedProgram || report.programId === selectedProgram;
     return matchesSearch && matchesBatch && matchesProgram;
   });
 
@@ -573,6 +584,8 @@ export default function ReportsScreen() {
           selectedProgram={selectedProgram}
           onBatchChange={setSelectedBatch}
           onProgramChange={setSelectedProgram}
+          batches={batches}
+          programs={programs}
         />
       </View>
 
