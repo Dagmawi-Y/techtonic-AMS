@@ -13,7 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { db } from '../../config/firebase';
 import { useAuthStore } from '../../store/authStore';
 
@@ -466,6 +466,25 @@ export default function BatchesScreen() {
     }
   }, [action]);
 
+  // Add cleanup effect for modal state
+  useEffect(() => {
+    return () => {
+      setIsModalVisible(false);
+      resetForm();
+    };
+  }, []);
+
+  // Handle screen focus
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset modal state when screen comes into focus
+      if (!action) {
+        setIsModalVisible(false);
+        resetForm();
+      }
+    }, [action])
+  );
+
   useEffect(() => {
     fetchBatches();
     fetchPrograms();
@@ -694,62 +713,32 @@ export default function BatchesScreen() {
     router.push('/programs');
   };
 
-  const validateForm = (data: typeof formData): FormErrors => {
+  const validateForm = () => {
     const errors: FormErrors = {};
 
-    // Name validation
-    if (!data.name.trim()) {
-      errors.name = 'Batch name is required';
-    } else if (data.name.length < 3) {
-      errors.name = 'Batch name must be at least 3 characters';
+    if (!formData.name.trim()) {
+      errors.name = 'Name is required';
     }
 
-    // Programs validation
-    if (!data.programs.length) {
-      errors.programs = 'Select at least one program';
-    }
-
-    // Date validations
-    if (!data.startDate) {
+    if (!formData.startDate) {
       errors.startDate = 'Start date is required';
     }
-    
-    if (!data.endDate) {
+
+    if (!formData.endDate) {
       errors.endDate = 'End date is required';
     }
 
-    if (data.startDate && data.endDate) {
-      // Parse dates in MM/DD/YYYY format
-      const parseDate = (dateStr: string): Date | null => {
-        const [month, day, year] = dateStr.split('/').map(num => parseInt(num, 10));
-        if (!month || !day || !year) return null;
-        const date = new Date(year, month - 1, day); // month is 0-based
-        return date;
-      };
+    // Remove program validation
+    // if (formData.programs.length === 0) {
+    //   errors.programs = 'At least one program is required';
+    // }
 
-      const startDate = parseDate(data.startDate);
-      const endDate = parseDate(data.endDate);
-      
-      if (!startDate) {
-        errors.startDate = 'Invalid start date';
-      }
-      
-      if (!endDate) {
-        errors.endDate = 'Invalid end date';
-      }
-      
-      if (startDate && endDate && endDate < startDate) {
-        errors.endDate = 'End date cannot be earlier than start date';
-      }
-    }
-
-    return errors;
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSave = async () => {
-    const errors = validateForm(formData);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
+    if (!validateForm()) {
       return;
     }
 
@@ -760,21 +749,21 @@ export default function BatchesScreen() {
         endDate: formData.endDate,
         programs: formData.programs,
         programCount: formData.programs.length,
-        studentCount: 0, // Default for new batch
-        createdBy: user?.name || 'Unknown',
+        studentCount: 0,
+        createdBy: user?.id || '',
         isDeleted: false,
         createdAt: new Date().toISOString(),
       };
 
-      if (formData.id) {
+      if (isEdit && formData.id) {
         await db.collection('batches').doc(formData.id).update(batchData);
       } else {
         await db.collection('batches').add(batchData);
       }
 
-      await fetchBatches();
-      setIsModalVisible(false);
       resetForm();
+      setIsModalVisible(false);
+      fetchBatches();
     } catch (error) {
       console.error('Error saving batch:', error);
       Alert.alert('Error', 'Failed to save batch');

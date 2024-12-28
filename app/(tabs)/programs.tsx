@@ -3,7 +3,7 @@ import { View, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert, RefreshCo
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { Text, TextInput } from '../../components';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { db } from '../../config/firebase';
 import { useAuthStore } from '../../store/authStore';
 
@@ -446,6 +446,8 @@ export default function ProgramsScreen() {
   const [isEdit, setIsEdit] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [programToDelete, setProgramToDelete] = useState<Program | null>(null);
   const [formData, setFormData] = useState({
     id: '',
     name: '',
@@ -453,9 +455,21 @@ export default function ProgramsScreen() {
     duration: '',
     batches: [] as Batch[],
   });
-  const [programToDelete, setProgramToDelete] = useState<Program | null>(null);
-  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      setIsModalVisible(false);
+      resetForm();
+    };
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setIsModalVisible(false);
+      resetForm();
+    }, [])
+  );
 
   useEffect(() => {
     fetchPrograms();
