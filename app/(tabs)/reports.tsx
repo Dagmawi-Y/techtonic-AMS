@@ -16,6 +16,8 @@ import { Text, TextInput } from '../../components';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { db } from '../../config/firebase';
 import { useFocusEffect } from 'expo-router';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 interface Program {
   id: string;
@@ -327,14 +329,135 @@ const ChartSection = memo(({ report }: { report: Report }) => {
   );
 });
 
+const generatePDFHTML = (report: Report) => {
+  const chartData = report.records.map(record => ({
+    date: new Date(record.date).toLocaleDateString(),
+    present: record.present,
+    absent: record.absent,
+    total: record.total,
+    percentage: record.percentage.toFixed(1),
+  }));
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+        <style>
+          body {
+            font-family: 'Helvetica Neue', 'Helvetica', Arial, sans-serif;
+            padding: 20px;
+          }
+          h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+          }
+          h2 {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 20px;
+          }
+          .summary {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+          }
+          .summary-item {
+            margin: 10px 0;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+          }
+          th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+          }
+          th {
+            background-color: #4CAF50;
+            color: white;
+          }
+          tr:nth-child(even) {
+            background-color: #f9f9f9;
+          }
+        </style>
+      </head>
+      <body>
+        <h1>Attendance Report</h1>
+        <h2>${report.batchName} - ${report.programName}</h2>
+        
+        <div class="summary">
+          <div class="summary-item">Period: ${new Date(report.startDate).toLocaleDateString()} to ${new Date(report.endDate).toLocaleDateString()}</div>
+          <div class="summary-item">Total Sessions: ${report.summary.totalSessions}</div>
+          <div class="summary-item">Total Students: ${report.summary.totalStudents}</div>
+          <div class="summary-item">Average Attendance: ${report.summary.averageAttendance.toFixed(1)}%</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Present</th>
+              <th>Absent</th>
+              <th>Total</th>
+              <th>Percentage</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${chartData.map(record => `
+              <tr>
+                <td>${record.date}</td>
+                <td>${record.present}</td>
+                <td>${record.absent}</td>
+                <td>${record.total}</td>
+                <td>${record.percentage}%</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+    </html>
+  `;
+};
+
+const generateCSVContent = (report: Report) => {
+  const headers = ['Date', 'Present', 'Absent', 'Total', 'Percentage'];
+  const rows = report.records.map(record => [
+    new Date(record.date).toLocaleDateString(),
+    record.present.toString(),
+    record.absent.toString(),
+    record.total.toString(),
+    record.percentage.toFixed(1) + '%'
+  ]);
+
+  const summaryRows = [
+    [''],
+    ['Report Summary'],
+    ['Period', `${new Date(report.startDate).toLocaleDateString()} to ${new Date(report.endDate).toLocaleDateString()}`],
+    ['Total Sessions', report.summary.totalSessions.toString()],
+    ['Total Students', report.summary.totalStudents.toString()],
+    ['Average Attendance', report.summary.averageAttendance.toFixed(1) + '%']
+  ];
+
+  return [
+    headers.join(','),
+    ...rows.map(row => row.join(',')),
+    ...summaryRows.map(row => row.join(','))
+  ].join('\n');
+};
+
 const ReportCard = memo(({ 
   report,
   onExportPDF,
   onExportCSV,
 }: {
   report: Report;
-  onExportPDF: () => void;
-  onExportCSV: () => void;
+  onExportPDF: (report: Report) => void;
+  onExportCSV: (report: Report) => void;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -380,14 +503,14 @@ const ReportCard = memo(({
           <View style={styles.exportSection}>
             <TouchableOpacity
               style={[styles.exportButton, styles.pdfButton]}
-              onPress={onExportPDF}
+              onPress={() => onExportPDF(report)}
             >
               <MaterialCommunityIcons name="file-pdf-box" size={24} color={COLORS.white} />
               <Text style={styles.exportButtonText} bold>Export PDF</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.exportButton, styles.csvButton]}
-              onPress={onExportCSV}
+              onPress={() => onExportCSV(report)}
             >
               <MaterialCommunityIcons name="file-excel" size={24} color={COLORS.white} />
               <Text style={styles.exportButtonText} bold>Export CSV</Text>
@@ -540,14 +663,60 @@ export default function ReportsScreen() {
     }, [])
   );
 
-  const handleExportPDF = useCallback(() => {
-    // TODO: Implement PDF export
-    Alert.alert('Coming Soon', 'PDF export will be available in a future update');
+  const handleExportPDF = useCallback(async (report: Report) => {
+    try {
+      const html = generatePDFHTML(report);
+      const file = await Print.printToFileAsync({
+        html,
+        base64: false
+      });
+
+      if (RNPlatform.OS === 'android') {
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (!isAvailable) {
+          Alert.alert('Error', 'Sharing is not available on this device');
+          return;
+        }
+      }
+
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `${report.batchName} - ${report.programName} Attendance Report`,
+        UTI: 'com.adobe.pdf'
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      Alert.alert('Error', 'Failed to export PDF');
+    }
   }, []);
 
-  const handleExportCSV = useCallback(() => {
-    // TODO: Implement CSV export
-    Alert.alert('Coming Soon', 'CSV export will be available in a future update');
+  const handleExportCSV = useCallback(async (report: Report) => {
+    try {
+      const csvContent = generateCSVContent(report);
+      const fileName = `${report.batchName}-${report.programName}-attendance.csv`;
+      
+      // Create a temporary file with CSV content
+      const file = await Print.printToFileAsync({
+        html: `<pre>${csvContent}</pre>`,
+        base64: false
+      });
+
+      // Rename the file to .csv
+      const csvFile = file.uri.slice(0, -3) + 'csv';
+      await RNPlatform.OS === 'ios' 
+        ? await Sharing.shareAsync(file.uri, {
+            mimeType: 'text/csv',
+            dialogTitle: fileName,
+            UTI: 'public.comma-separated-values-text'
+          })
+        : await Sharing.shareAsync(file.uri, {
+            mimeType: 'text/csv',
+            dialogTitle: fileName
+          });
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      Alert.alert('Error', 'Failed to export CSV');
+    }
   }, []);
 
   const filteredReports = reports.filter(report => {
@@ -595,8 +764,8 @@ export default function ReportsScreen() {
             <ReportCard
               key={report.id}
               report={report}
-              onExportPDF={handleExportPDF}
-              onExportCSV={handleExportCSV}
+              onExportPDF={() => handleExportPDF(report)}
+              onExportCSV={() => handleExportCSV(report)}
             />
           ))
         ) : (
