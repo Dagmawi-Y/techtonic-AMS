@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "91355796172",
+    "project_id": "techtonic-ams",
+    "storage_bucket": "techtonic-ams.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:91355796172:android:526cfc0dbf661e8daaa869",
+        "android_client_info": {
+          "package_name": "com.dagmawi_y.tt_ams"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0aiv_t-hqGNmSipw2543Bic1evA9XobU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
