@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' ;
+  role: "admin";
   //| 'teacher' | 'student';
   createdAt: number;
   lastLoginAt: number;
@@ -24,7 +24,7 @@ export interface Batch {
   startDate: number;
   endDate: number;
   // teacherId: string;
-  status: 'active' | 'completed' | 'upcoming';
+  status: "active" | "completed" | "upcoming";
   createdAt: number;
   updatedAt: number;
 }
@@ -36,7 +36,7 @@ export interface Student {
   phone: string;
   batchIds: string[];
   enrollmentDate: number;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   createdAt: number;
   updatedAt: number;
 }
@@ -46,7 +46,7 @@ export interface AttendanceRecord {
   studentId: string;
   batchId: string;
   date: number;
-  status: 'present' | 'absent' | 'late';
+  status: "present" | "absent" | "late";
   markedBy: string;
   markedAt: number;
   updatedAt: number;
@@ -54,11 +54,11 @@ export interface AttendanceRecord {
 
 export interface Report {
   id: string;
-  type: 'attendance' | 'performance';
+  type: "attendance" | "performance";
   batchId: string;
   startDate: number;
   endDate: number;
   data: any;
   generatedBy: string;
   generatedAt: number;
-} 
+}

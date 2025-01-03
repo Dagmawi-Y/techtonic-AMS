@@ -1,20 +1,28 @@
-import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
-import { mmkvStorage } from './storage';
-import { AttendanceRecord } from './types';
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { mmkvStorage } from "./storage";
+import { AttendanceRecord } from "./types";
 
 interface AttendanceState {
   records: Record<string, AttendanceRecord>;
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   setRecords: (records: Record<string, AttendanceRecord>) => void;
   addRecord: (record: AttendanceRecord) => void;
   updateRecord: (recordId: string, updates: Partial<AttendanceRecord>) => void;
   deleteRecord: (recordId: string) => void;
-  getRecordsByBatch: (batchId: string, startDate?: number, endDate?: number) => AttendanceRecord[];
-  getRecordsByStudent: (studentId: string, startDate?: number, endDate?: number) => AttendanceRecord[];
+  getRecordsByBatch: (
+    batchId: string,
+    startDate?: number,
+    endDate?: number,
+  ) => AttendanceRecord[];
+  getRecordsByStudent: (
+    studentId: string,
+    startDate?: number,
+    endDate?: number,
+  ) => AttendanceRecord[];
   getRecordsByDate: (date: number, batchId?: string) => AttendanceRecord[];
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -28,22 +36,25 @@ export const useAttendanceStore = create<AttendanceState>()(
       error: null,
 
       setRecords: (records) => set({ records }),
-      addRecord: (record) => set((state) => ({
-        records: { ...state.records, [record.id]: record }
-      })),
-      updateRecord: (recordId, updates) => set((state) => ({
-        records: {
-          ...state.records,
-          [recordId]: { ...state.records[recordId], ...updates }
-        }
-      })),
-      deleteRecord: (recordId) => set((state) => {
-        const { [recordId]: _, ...rest } = state.records;
-        return { records: rest };
-      }),
+      addRecord: (record) =>
+        set((state) => ({
+          records: { ...state.records, [record.id]: record },
+        })),
+      updateRecord: (recordId, updates) =>
+        set((state) => ({
+          records: {
+            ...state.records,
+            [recordId]: { ...state.records[recordId], ...updates },
+          },
+        })),
+      deleteRecord: (recordId) =>
+        set((state) => {
+          const { [recordId]: _, ...rest } = state.records;
+          return { records: rest };
+        }),
       getRecordsByBatch: (batchId, startDate, endDate) => {
         const state = get();
-        return Object.values(state.records).filter(record => {
+        return Object.values(state.records).filter((record) => {
           const matchesBatch = record.batchId === batchId;
           if (!matchesBatch) return false;
           if (startDate && record.date < startDate) return false;
@@ -53,7 +64,7 @@ export const useAttendanceStore = create<AttendanceState>()(
       },
       getRecordsByStudent: (studentId, startDate, endDate) => {
         const state = get();
-        return Object.values(state.records).filter(record => {
+        return Object.values(state.records).filter((record) => {
           const matchesStudent = record.studentId === studentId;
           if (!matchesStudent) return false;
           if (startDate && record.date < startDate) return false;
@@ -65,8 +76,9 @@ export const useAttendanceStore = create<AttendanceState>()(
         const state = get();
         const startOfDay = new Date(date).setHours(0, 0, 0, 0);
         const endOfDay = new Date(date).setHours(23, 59, 59, 999);
-        return Object.values(state.records).filter(record => {
-          const matchesDate = record.date >= startOfDay && record.date <= endOfDay;
+        return Object.values(state.records).filter((record) => {
+          const matchesDate =
+            record.date >= startOfDay && record.date <= endOfDay;
           if (!matchesDate) return false;
           if (batchId && record.batchId !== batchId) return false;
           return true;
@@ -76,8 +88,8 @@ export const useAttendanceStore = create<AttendanceState>()(
       setError: (error) => set({ error }),
     }),
     {
-      name: 'attendance-storage',
+      name: "attendance-storage",
       storage: createJSONStorage(() => mmkvStorage),
-    }
-  )
-); 
+    },
+  ),
+);

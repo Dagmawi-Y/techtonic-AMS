@@ -1,16 +1,16 @@
 export const COLORS = {
-  primary: '#98C444',
-  secondary: '#289144',
-  background: '#F5F5F5',
-  text: '#333333',
-  textLight: '#666666',
-  border: '#E5E5E5',
-  error: '#FF3B30',
-  success: '#34C759',
-  white: '#FFFFFF',
-  black: '#000000',
-  gray: '#808080',
-  lightGray: '#F5F5F5',
+  primary: "#98C444",
+  secondary: "#289144",
+  background: "#F5F5F5",
+  text: "#333333",
+  textLight: "#666666",
+  border: "#E5E5E5",
+  error: "#FF3B30",
+  success: "#34C759",
+  white: "#FFFFFF",
+  black: "#000000",
+  gray: "#808080",
+  lightGray: "#F5F5F5",
 };
 
 export const SPACING = {
@@ -42,7 +42,7 @@ export const BORDER_RADIUS = {
 
 export const SHADOWS = {
   small: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -52,13 +52,13 @@ export const SHADOWS = {
     elevation: 2,
   },
   medium: {
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.30,
+    shadowOpacity: 0.3,
     shadowRadius: 4.65,
     elevation: 4,
   },
-}; 
+};

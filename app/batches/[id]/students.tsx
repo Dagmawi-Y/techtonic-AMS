@@ -1,10 +1,23 @@
-import React, { useState, useEffect, memo } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../../constants/theme';
-import { Text } from '../../../components';
-import { db } from '../../../config/firebase';
+import React, { useState, useEffect, memo } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  COLORS,
+  SPACING,
+  FONT_SIZES,
+  BORDER_RADIUS,
+  SHADOWS,
+} from "../../../constants/theme";
+import { Text } from "../../../components";
+import { db } from "../../../config/firebase";
 
 interface Student {
   id: string;
@@ -35,7 +48,9 @@ const EmptyState = memo(() => (
       color={COLORS.secondary}
       style={styles.emptyStateIcon}
     />
-    <Text style={styles.emptyStateTitle} bold>No Students Yet</Text>
+    <Text style={styles.emptyStateTitle} bold>
+      No Students Yet
+    </Text>
     <Text style={styles.emptyStateMessage}>
       This batch doesn't have any students enrolled yet
     </Text>
@@ -52,42 +67,46 @@ export default function BatchStudentsScreen() {
   const fetchBatchStudents = async () => {
     try {
       // Fetch batch details
-      const batchDoc = await db.collection('batches').doc(id as string).get();
-      
+      const batchDoc = await db
+        .collection("batches")
+        .doc(id as string)
+        .get();
+
       if (!batchDoc.exists) {
-        Alert.alert('Error', 'Batch not found');
+        Alert.alert("Error", "Batch not found");
         router.back();
         return;
       }
 
       const batchData = batchDoc.data();
       if (batchData?.isDeleted) {
-        Alert.alert('Error', 'Batch not found');
+        Alert.alert("Error", "Batch not found");
         router.back();
         return;
       }
 
       setBatch({
         id: batchDoc.id,
-        name: batchData?.name || '',
+        name: batchData?.name || "",
         studentCount: batchData?.studentCount || 0,
       });
 
       // Fetch students in this batch
-      const studentsSnapshot = await db.collection('students')
-        .where('batch.id', '==', id)
-        .where('isDeleted', '==', false)
+      const studentsSnapshot = await db
+        .collection("students")
+        .where("batch.id", "==", id)
+        .where("isDeleted", "==", false)
         .get();
 
-      const fetchedStudents = studentsSnapshot.docs.map(doc => ({
+      const fetchedStudents = studentsSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Student[];
 
       setStudents(fetchedStudents);
     } catch (error) {
-      console.error('Error fetching batch students:', error);
-      Alert.alert('Error', 'Failed to fetch students');
+      console.error("Error fetching batch students:", error);
+      Alert.alert("Error", "Failed to fetch students");
     }
   };
 
@@ -100,7 +119,7 @@ export default function BatchStudentsScreen() {
     try {
       await fetchBatchStudents();
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error("Error refreshing data:", error);
     }
     setRefreshing(false);
   };
@@ -138,7 +157,9 @@ export default function BatchStudentsScreen() {
             color={COLORS.text}
           />
         </TouchableOpacity>
-        <Text style={styles.title} bold>{batch.name} - Students</Text>
+        <Text style={styles.title} bold>
+          {batch.name} - Students
+        </Text>
       </View>
 
       {students.length === 0 ? (
@@ -176,11 +197,15 @@ export default function BatchStudentsScreen() {
                   color={COLORS.primary}
                 />
                 <View style={styles.studentInfo}>
-                  <Text style={styles.studentName} bold>{student.name}</Text>
+                  <Text style={styles.studentName} bold>
+                    {student.name}
+                  </Text>
                   <Text style={styles.studentId}>{student.studentId}</Text>
                 </View>
                 <View style={styles.departmentBadge}>
-                  <Text style={styles.departmentText} bold>{student.department}</Text>
+                  <Text style={styles.departmentText} bold>
+                    {student.department}
+                  </Text>
                 </View>
               </View>
               <View style={styles.studentDetails}>
@@ -191,7 +216,8 @@ export default function BatchStudentsScreen() {
                     color={COLORS.secondary}
                   />
                   <Text style={styles.detailText}>
-                    {student.programs.length} Program{student.programs.length !== 1 ? 's' : ''}
+                    {student.programs.length} Program
+                    {student.programs.length !== 1 ? "s" : ""}
                   </Text>
                 </View>
               </View>
@@ -209,8 +235,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -237,8 +263,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
   },
   studentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: SPACING.sm,
   },
   studentInfo: {
@@ -268,8 +294,8 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: SPACING.xs,
   },
   detailText: {
@@ -279,8 +305,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     fontSize: FONT_SIZES.md,
@@ -288,8 +314,8 @@ const styles = StyleSheet.create({
   },
   emptyStateContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: SPACING.xl,
   },
   emptyStateIcon: {
@@ -300,12 +326,12 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.xl,
     color: COLORS.text,
     marginBottom: SPACING.sm,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyStateMessage: {
     fontSize: FONT_SIZES.md,
     color: COLORS.textLight,
-    textAlign: 'center',
+    textAlign: "center",
     maxWidth: 300,
   },
-}); 
+});

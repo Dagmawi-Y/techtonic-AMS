@@ -1,10 +1,17 @@
-import { Tabs, router } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS } from '../../constants/theme';
-import { Platform, Pressable, View, Modal, StyleSheet, Alert } from 'react-native';
-import { useAuthStore } from '../../store/authStore';
-import { useState } from 'react';
-import { Text } from '../../components';
+import { Tabs, router } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { COLORS } from "../../constants/theme";
+import {
+  Platform,
+  Pressable,
+  View,
+  Modal,
+  StyleSheet,
+  Alert,
+} from "react-native";
+import { useAuthStore } from "../../store/authStore";
+import { useState } from "react";
+import { Text } from "../../components";
 
 interface ConfirmationModalProps {
   isVisible: boolean;
@@ -29,7 +36,9 @@ const ConfirmationModal = ({
   >
     <View style={styles.modalOverlay}>
       <View style={styles.modalContent}>
-        <Text style={styles.modalTitle} bold>{title}</Text>
+        <Text style={styles.modalTitle} bold>
+          {title}
+        </Text>
         <Text style={styles.modalMessage}>{message}</Text>
         <View style={styles.modalActions}>
           <Pressable
@@ -59,9 +68,9 @@ export default function TabLayout() {
   const handleLogout = async () => {
     try {
       await signOut();
-      router.replace('/login');
+      router.replace("/login");
     } catch (error) {
-      Alert.alert('Error', 'Failed to logout. Please try again.');
+      Alert.alert("Error", "Failed to logout. Please try again.");
     }
   };
 
@@ -106,10 +115,10 @@ export default function TabLayout() {
           },
           headerTintColor: COLORS.white,
           headerTitleStyle: {
-            fontFamily: 'Ubuntu-Bold',
+            fontFamily: "Ubuntu-Bold",
           },
           tabBarLabelStyle: {
-            fontFamily: 'Ubuntu-Regular',
+            fontFamily: "Ubuntu-Regular",
           },
           tabBarShowLabel: true,
           tabBarHideOnKeyboard: true,
@@ -136,9 +145,13 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Dashboard',
+            title: "Dashboard",
             tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="view-dashboard" size={size} color={color} />
+              <MaterialCommunityIcons
+                name="view-dashboard"
+                size={size}
+                color={color}
+              />
             ),
             tabBarButton: (props) => (
               <Pressable {...props} android_ripple={null} style={props.style} />
@@ -148,9 +161,13 @@ export default function TabLayout() {
         <Tabs.Screen
           name="batches"
           options={{
-            title: 'Batches',
+            title: "Batches",
             tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="account-group" size={size} color={color} />
+              <MaterialCommunityIcons
+                name="account-group"
+                size={size}
+                color={color}
+              />
             ),
             tabBarButton: (props) => (
               <Pressable {...props} android_ripple={null} style={props.style} />
@@ -160,9 +177,13 @@ export default function TabLayout() {
         <Tabs.Screen
           name="programs"
           options={{
-            title: 'Programs',
+            title: "Programs",
             tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="book-open-variant" size={size} color={color} />
+              <MaterialCommunityIcons
+                name="book-open-variant"
+                size={size}
+                color={color}
+              />
             ),
             tabBarButton: (props) => (
               <Pressable {...props} android_ripple={null} style={props.style} />
@@ -172,9 +193,13 @@ export default function TabLayout() {
         <Tabs.Screen
           name="students"
           options={{
-            title: 'Students',
+            title: "Students",
             tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="account-multiple" size={size} color={color} />
+              <MaterialCommunityIcons
+                name="account-multiple"
+                size={size}
+                color={color}
+              />
             ),
             tabBarButton: (props) => (
               <Pressable {...props} android_ripple={null} style={props.style} />
@@ -184,9 +209,13 @@ export default function TabLayout() {
         <Tabs.Screen
           name="attendance"
           options={{
-            title: 'Attendance',
+            title: "Attendance",
             tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="calendar-check" size={size} color={color} />
+              <MaterialCommunityIcons
+                name="calendar-check"
+                size={size}
+                color={color}
+              />
             ),
             tabBarButton: (props) => (
               <Pressable {...props} android_ripple={null} style={props.style} />
@@ -196,9 +225,13 @@ export default function TabLayout() {
         <Tabs.Screen
           name="reports"
           options={{
-            title: 'Reports',
+            title: "Reports",
             tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name="file-chart" size={size} color={color} />
+              <MaterialCommunityIcons
+                name="file-chart"
+                size={size}
+                color={color}
+              />
             ),
             tabBarButton: (props) => (
               <Pressable {...props} android_ripple={null} style={props.style} />
@@ -223,7 +256,7 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   dropdownMenu: {
-    position: 'absolute',
+    position: "absolute",
     top: 30,
     right: 15,
     backgroundColor: COLORS.white,
@@ -244,8 +277,8 @@ const styles = StyleSheet.create({
     }),
   },
   dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 8,
     borderRadius: 4,
   },
@@ -256,32 +289,32 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
     backgroundColor: COLORS.white,
     borderRadius: 12,
     padding: 20,
-    width: '80%',
+    width: "80%",
     maxWidth: 400,
   },
   modalTitle: {
     fontSize: 18,
     marginBottom: 10,
     color: COLORS.text,
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalMessage: {
     fontSize: 16,
     marginBottom: 20,
     color: COLORS.textLight,
-    textAlign: 'center',
+    textAlign: "center",
   },
   modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
   modalButton: {
     paddingVertical: 8,
@@ -303,4 +336,4 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 16,
   },
-}); 
+});

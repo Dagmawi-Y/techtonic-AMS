@@ -1,10 +1,23 @@
-import React, { useState, useEffect, memo } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../../constants/theme';
-import { Text } from '../../../components';
-import { db } from '../../../config/firebase';
+import React, { useState, useEffect, memo } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  COLORS,
+  SPACING,
+  FONT_SIZES,
+  BORDER_RADIUS,
+  SHADOWS,
+} from "../../../constants/theme";
+import { Text } from "../../../components";
+import { db } from "../../../config/firebase";
 
 interface Program {
   id: string;
@@ -27,7 +40,9 @@ const EmptyState = memo(() => (
       color={COLORS.secondary}
       style={styles.emptyStateIcon}
     />
-    <Text style={styles.emptyStateTitle} bold>No Programs Assigned</Text>
+    <Text style={styles.emptyStateTitle} bold>
+      No Programs Assigned
+    </Text>
     <Text style={styles.emptyStateMessage}>
       This batch doesn't have any programs assigned to it yet
     </Text>
@@ -42,29 +57,32 @@ export default function BatchProgramsScreen() {
 
   const fetchBatchPrograms = async () => {
     try {
-      const batchDoc = await db.collection('batches').doc(id as string).get();
-      
+      const batchDoc = await db
+        .collection("batches")
+        .doc(id as string)
+        .get();
+
       if (!batchDoc.exists) {
-        Alert.alert('Error', 'Batch not found');
+        Alert.alert("Error", "Batch not found");
         router.back();
         return;
       }
 
       const batchData = batchDoc.data();
       if (batchData?.isDeleted) {
-        Alert.alert('Error', 'Batch not found');
+        Alert.alert("Error", "Batch not found");
         router.back();
         return;
       }
 
       setBatch({
         id: batchDoc.id,
-        name: batchData?.name || '',
+        name: batchData?.name || "",
         programs: batchData?.programs || [],
       });
     } catch (error) {
-      console.error('Error fetching batch programs:', error);
-      Alert.alert('Error', 'Failed to fetch batch programs');
+      console.error("Error fetching batch programs:", error);
+      Alert.alert("Error", "Failed to fetch batch programs");
     }
   };
 
@@ -77,7 +95,7 @@ export default function BatchProgramsScreen() {
     try {
       await fetchBatchPrograms();
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error("Error refreshing data:", error);
     }
     setRefreshing(false);
   };
@@ -105,7 +123,9 @@ export default function BatchProgramsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title} bold>{batch.name} - Programs</Text>
+        <Text style={styles.title} bold>
+          {batch.name} - Programs
+        </Text>
       </View>
 
       {batch.programs.length === 0 ? (
@@ -143,11 +163,17 @@ export default function BatchProgramsScreen() {
                   color={COLORS.primary}
                 />
                 <View style={styles.programInfo}>
-                  <Text style={styles.programName} bold>{program.name}</Text>
-                  <Text style={styles.programDuration}>{program.duration} weeks</Text>
+                  <Text style={styles.programName} bold>
+                    {program.name}
+                  </Text>
+                  <Text style={styles.programDuration}>
+                    {program.duration} weeks
+                  </Text>
                 </View>
               </View>
-              <Text style={styles.programDescription}>{program.description}</Text>
+              <Text style={styles.programDescription}>
+                {program.description}
+              </Text>
             </View>
           ))}
         </ScrollView>
@@ -162,8 +188,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -190,8 +216,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
   },
   programHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: SPACING.sm,
   },
   programInfo: {
@@ -214,8 +240,8 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: SPACING.xl,
   },
   emptyIcon: {
@@ -225,12 +251,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: FONT_SIZES.md,
     color: COLORS.gray,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyStateContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: SPACING.xl,
   },
   emptyStateIcon: {
@@ -241,12 +267,12 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.xl,
     color: COLORS.text,
     marginBottom: SPACING.sm,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyStateMessage: {
     fontSize: FONT_SIZES.md,
     color: COLORS.textLight,
-    textAlign: 'center',
+    textAlign: "center",
     maxWidth: 300,
   },
-}); 
+});

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, memo, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -9,14 +9,20 @@ import {
   Platform,
   RefreshControl,
   Animated,
-} from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
-import { Text, TextInput } from '../../components';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { db } from '../../config/firebase';
-import { useAuthStore } from '../../store/authStore';
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import {
+  COLORS,
+  SPACING,
+  FONT_SIZES,
+  BORDER_RADIUS,
+  SHADOWS,
+} from "../../constants/theme";
+import { Text, TextInput } from "../../components";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
+import { db } from "../../config/firebase";
+import { useAuthStore } from "../../store/authStore";
 
 interface Program {
   id: string;
@@ -41,7 +47,7 @@ const getInitialDateForPicker = (dateString: string): Date => {
   if (!dateString) {
     return new Date();
   }
-  
+
   try {
     // If it's a new form with today's date from toLocaleDateString()
     if (dateString === new Date().toLocaleDateString()) {
@@ -49,104 +55,128 @@ const getInitialDateForPicker = (dateString: string): Date => {
     }
 
     // Parse the MM/DD/YYYY format
-    const [month, day, year] = dateString.split('/').map(num => parseInt(num, 10));
+    const [month, day, year] = dateString
+      .split("/")
+      .map((num) => parseInt(num, 10));
     const date = new Date(year, month - 1, day);
-    
+
     return isNaN(date.getTime()) ? new Date() : date;
   } catch (error) {
     return new Date(); // Default to today if any parsing error
   }
 };
 
-const ProgramSelector = memo(({ 
-  programs,
-  selectedPrograms,
-  onSelect,
-  onNavigateToPrograms
-}: {
-  programs: Program[];
-  selectedPrograms: Program[];
-  onSelect: (programs: Program[]) => void;
-  onNavigateToPrograms: () => void;
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
+const ProgramSelector = memo(
+  ({
+    programs,
+    selectedPrograms,
+    onSelect,
+    onNavigateToPrograms,
+  }: {
+    programs: Program[];
+    selectedPrograms: Program[];
+    onSelect: (programs: Program[]) => void;
+    onNavigateToPrograms: () => void;
+  }) => {
+    const [isOpen, setIsOpen] = useState(false);
 
-  if (programs.length === 0) {
+    if (programs.length === 0) {
+      return (
+        <View style={styles.programSelectorEmpty}>
+          <Text style={styles.programSelectorEmptyText}>
+            No programs available
+          </Text>
+          <TouchableOpacity
+            style={styles.programSelectorEmptyButton}
+            onPress={onNavigateToPrograms}
+          >
+            <MaterialCommunityIcons
+              name="plus"
+              size={20}
+              color={COLORS.white}
+            />
+            <Text style={styles.programSelectorEmptyButtonText} bold>
+              Add Program
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     return (
-      <View style={styles.programSelectorEmpty}>
-        <Text style={styles.programSelectorEmptyText}>No programs available</Text>
+      <View>
         <TouchableOpacity
-          style={styles.programSelectorEmptyButton}
-          onPress={onNavigateToPrograms}
+          style={styles.programSelectorButton}
+          onPress={() => setIsOpen(!isOpen)}
         >
-          <MaterialCommunityIcons name="plus" size={20} color={COLORS.white} />
-          <Text style={styles.programSelectorEmptyButtonText} bold>Add Program</Text>
+          <Text style={styles.programSelectorButtonText}>
+            {selectedPrograms.length === 0
+              ? "Select Programs"
+              : `${selectedPrograms.length} Program${selectedPrograms.length === 1 ? "" : "s"} Selected`}
+          </Text>
+          <MaterialCommunityIcons
+            name={isOpen ? "chevron-up" : "chevron-down"}
+            size={24}
+            color={COLORS.text}
+          />
         </TouchableOpacity>
+
+        {isOpen && (
+          <View style={styles.programList}>
+            {programs.map((program) => {
+              const isSelected = selectedPrograms.some(
+                (p) => p.id === program.id,
+              );
+              return (
+                <TouchableOpacity
+                  key={program.id}
+                  style={[
+                    styles.programItem,
+                    isSelected && styles.programItemSelected,
+                  ]}
+                  onPress={() => {
+                    if (isSelected) {
+                      onSelect(
+                        selectedPrograms.filter((p) => p.id !== program.id),
+                      );
+                    } else {
+                      onSelect([...selectedPrograms, program]);
+                    }
+                  }}
+                >
+                  <View style={styles.programItemContent}>
+                    <Text
+                      style={[
+                        styles.programItemText,
+                        isSelected && styles.programItemTextSelected,
+                      ]}
+                      bold
+                    >
+                      {program.name}
+                    </Text>
+                    <Text
+                      style={styles.programItemDescription}
+                      numberOfLines={1}
+                    >
+                      {program.description}
+                    </Text>
+                  </View>
+                  {isSelected && (
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={20}
+                      color={COLORS.white}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </View>
     );
-  }
-
-  return (
-    <View>
-      <TouchableOpacity
-        style={styles.programSelectorButton}
-        onPress={() => setIsOpen(!isOpen)}
-      >
-        <Text style={styles.programSelectorButtonText}>
-          {selectedPrograms.length === 0
-            ? 'Select Programs'
-            : `${selectedPrograms.length} Program${selectedPrograms.length === 1 ? '' : 's'} Selected`}
-        </Text>
-        <MaterialCommunityIcons
-          name={isOpen ? 'chevron-up' : 'chevron-down'}
-          size={24}
-          color={COLORS.text}
-        />
-      </TouchableOpacity>
-
-      {isOpen && (
-        <View style={styles.programList}>
-          {programs.map((program) => {
-            const isSelected = selectedPrograms.some(p => p.id === program.id);
-            return (
-              <TouchableOpacity
-                key={program.id}
-                style={[
-                  styles.programItem,
-                  isSelected && styles.programItemSelected
-                ]}
-                onPress={() => {
-                  if (isSelected) {
-                    onSelect(selectedPrograms.filter(p => p.id !== program.id));
-                  } else {
-                    onSelect([...selectedPrograms, program]);
-                  }
-                }}
-              >
-                <View style={styles.programItemContent}>
-                  <Text style={[
-                    styles.programItemText,
-                    isSelected && styles.programItemTextSelected
-                  ]} bold>{program.name}</Text>
-                  <Text style={styles.programItemDescription} numberOfLines={1}>
-                    {program.description}
-                  </Text>
-                </View>
-                {isSelected && (
-                  <MaterialCommunityIcons
-                    name="check"
-                    size={20}
-                    color={COLORS.white}
-                  />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
-    </View>
-  );
-});
+  },
+);
 
 interface FormErrors {
   name?: string;
@@ -156,273 +186,300 @@ interface FormErrors {
 }
 
 // Memoize the BatchModal to prevent re-renders
-const BatchModal = memo(({ 
-  isEdit,
-  isVisible,
-  onClose,
-  formData,
-  formErrors,
-  onUpdateForm,
-  onNavigateToPrograms,
-  onSave,
-  onClearError,
-  onShowStartDatePicker,
-  onShowEndDatePicker,
-  availablePrograms,
-}: {
-  isEdit: boolean;
-  isVisible: boolean;
-  onClose: () => void;
-  formData: any;
-  formErrors: FormErrors;
-  onUpdateForm: (data: any) => void;
-  onNavigateToPrograms: () => void;
-  onSave: () => void;
-  onClearError: (field: keyof FormErrors) => void;
-  onShowStartDatePicker: () => void;
-  onShowEndDatePicker: () => void;
-  availablePrograms: Program[];
-}) => (
-  <Modal
-    animationType="fade"
-    transparent={true}
-    hardwareAccelerated={true}
-    statusBarTranslucent={true}
-    visible={isVisible}
-    onRequestClose={onClose}
-  >
-    <View style={styles.modalOverlay}>
-      <View style={styles.modalContent}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle} bold>
-            {isEdit ? 'Edit Batch' : 'Create New Batch'}
-          </Text>
-          <TouchableOpacity onPress={onClose}>
-            <MaterialCommunityIcons
-              name="close"
-              size={24}
-              color={COLORS.text}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.modalBody}>
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Batch Name</Text>
-            <TextInput
-              style={[
-                styles.input,
-                formErrors.name && styles.inputError
-              ]}
-              placeholder="Enter batch name"
-              placeholderTextColor={COLORS.gray}
-              value={formData.name}
-              onChangeText={(text) => {
-                onUpdateForm({ ...formData, name: text });
-                if (formErrors.name) {
-                  onClearError('name');
-                }
-              }}
-            />
-            {formErrors.name && (
-              <Text style={styles.errorText}>{formErrors.name}</Text>
-            )}
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Programs</Text>
-            <ProgramSelector
-              programs={availablePrograms}
-              selectedPrograms={formData.programs || []}
-              onSelect={(programs) => {
-                onUpdateForm({ ...formData, programs });
-                if (formErrors.programs) {
-                  onClearError('programs');
-                }
-              }}
-              onNavigateToPrograms={onNavigateToPrograms}
-            />
-            {formErrors.programs && (
-              <Text style={styles.errorText}>{formErrors.programs}</Text>
-            )}
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Start Date</Text>
-            <TouchableOpacity
-              onPress={onShowStartDatePicker}
-              style={styles.dateInput}
-            >
-              <TextInput
-                style={[
-                  styles.input,
-                  formErrors.startDate && styles.inputError
-                ]}
-                placeholder="Select start date"
-                placeholderTextColor={COLORS.gray}
-                value={formData.startDate}
-                editable={false}
-              />
-            </TouchableOpacity>
-            {formErrors.startDate && (
-              <Text style={styles.errorText}>{formErrors.startDate}</Text>
-            )}
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>End Date</Text>
-            <TouchableOpacity
-              onPress={onShowEndDatePicker}
-              style={styles.dateInput}
-            >
-              <TextInput
-                style={[
-                  styles.input,
-                  formErrors.endDate && styles.inputError
-                ]}
-                placeholder="Select end date"
-                placeholderTextColor={COLORS.gray}
-                value={formData.endDate}
-                editable={false}
-              />
-            </TouchableOpacity>
-            {formErrors.endDate && (
-              <Text style={styles.errorText}>{formErrors.endDate}</Text>
-            )}
-          </View>
-        </ScrollView>
-
-        <View style={styles.modalFooter}>
-          <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
-            onPress={onClose}
-          >
-            <Text style={styles.buttonText} bold>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.saveButton]}
-            onPress={onSave}
-          >
-            <Text style={[styles.buttonText, { color: COLORS.white }]} bold>
-              {isEdit ? 'Save' : 'Create'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  </Modal>
-));
-
-// Memoize the DatePickerComponent to prevent re-renders
-const DatePickerComponent = memo(({ 
-  showStartDatePicker,
-  showEndDatePicker,
-  formData,
-  onDateChange,
-  onClose
-}: {
-  showStartDatePicker: boolean;
-  showEndDatePicker: boolean;
-  formData: any;
-  onDateChange: (event: any, date: Date | undefined, isStartDate: boolean) => void;
-  onClose: () => void;
-}) => {
-  const initialDate = getInitialDateForPicker(
-    showStartDatePicker ? formData.startDate : formData.endDate
-  );
-
-  if (Platform.OS === 'ios') {
-    return (
-      <Modal
-        transparent={true}
-        animationType="slide"
-        visible={showStartDatePicker || showEndDatePicker}
-        onRequestClose={onClose}
-        statusBarTranslucent={true}
-      >
-        <View style={styles.datePickerModalOverlay}>
-          <View style={styles.datePickerContent}>
-            <View style={styles.datePickerHeader}>
-              <TouchableOpacity onPress={onClose}>
-                <Text style={styles.datePickerHeaderText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={onClose}>
-                <Text style={[styles.datePickerHeaderText, { color: COLORS.primary }]}>Done</Text>
-              </TouchableOpacity>
-            </View>
-            <DateTimePicker
-              value={initialDate}
-              mode="date"
-              display="spinner"
-              onChange={(event, date) => onDateChange(event, date, showStartDatePicker)}
-              style={styles.datePicker}
-            />
-          </View>
-        </View>
-      </Modal>
-    );
-  }
-
-  return (showStartDatePicker || showEndDatePicker) ? (
-    <DateTimePicker
-      value={initialDate}
-      mode="date"
-      display="default"
-      onChange={(event, date) => onDateChange(event, date, showStartDatePicker)}
-    />
-  ) : null;
-});
-
-const DeleteConfirmationDialog = memo(({
-  isVisible,
-  batch,
-  onConfirm,
-  onCancel,
-}: {
-  isVisible: boolean;
-  batch: Batch;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) => {
-  return (
+const BatchModal = memo(
+  ({
+    isEdit,
+    isVisible,
+    onClose,
+    formData,
+    formErrors,
+    onUpdateForm,
+    onNavigateToPrograms,
+    onSave,
+    onClearError,
+    onShowStartDatePicker,
+    onShowEndDatePicker,
+    availablePrograms,
+  }: {
+    isEdit: boolean;
+    isVisible: boolean;
+    onClose: () => void;
+    formData: any;
+    formErrors: FormErrors;
+    onUpdateForm: (data: any) => void;
+    onNavigateToPrograms: () => void;
+    onSave: () => void;
+    onClearError: (field: keyof FormErrors) => void;
+    onShowStartDatePicker: () => void;
+    onShowEndDatePicker: () => void;
+    availablePrograms: Program[];
+  }) => (
     <Modal
       animationType="fade"
       transparent={true}
+      hardwareAccelerated={true}
+      statusBarTranslucent={true}
       visible={isVisible}
-      onRequestClose={onCancel}
+      onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, styles.confirmationDialog]}>
-          <View style={styles.confirmationIcon}>
-            <MaterialCommunityIcons
-              name="alert-circle-outline"
-              size={48}
-              color={COLORS.error}
-            />
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle} bold>
+              {isEdit ? "Edit Batch" : "Create New Batch"}
+            </Text>
+            <TouchableOpacity onPress={onClose}>
+              <MaterialCommunityIcons
+                name="close"
+                size={24}
+                color={COLORS.text}
+              />
+            </TouchableOpacity>
           </View>
-          <Text style={styles.confirmationTitle} bold>Delete Batch</Text>
-          <Text style={styles.confirmationMessage}>
-            Are you sure you want to delete {batch.name}? This action cannot be undone.
-          </Text>
-          <View style={styles.confirmationButtons}>
+
+          <ScrollView style={styles.modalBody}>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Batch Name</Text>
+              <TextInput
+                style={[styles.input, formErrors.name && styles.inputError]}
+                placeholder="Enter batch name"
+                placeholderTextColor={COLORS.gray}
+                value={formData.name}
+                onChangeText={(text) => {
+                  onUpdateForm({ ...formData, name: text });
+                  if (formErrors.name) {
+                    onClearError("name");
+                  }
+                }}
+              />
+              {formErrors.name && (
+                <Text style={styles.errorText}>{formErrors.name}</Text>
+              )}
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Programs</Text>
+              <ProgramSelector
+                programs={availablePrograms}
+                selectedPrograms={formData.programs || []}
+                onSelect={(programs) => {
+                  onUpdateForm({ ...formData, programs });
+                  if (formErrors.programs) {
+                    onClearError("programs");
+                  }
+                }}
+                onNavigateToPrograms={onNavigateToPrograms}
+              />
+              {formErrors.programs && (
+                <Text style={styles.errorText}>{formErrors.programs}</Text>
+              )}
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Start Date</Text>
+              <TouchableOpacity
+                onPress={onShowStartDatePicker}
+                style={styles.dateInput}
+              >
+                <TextInput
+                  style={[
+                    styles.input,
+                    formErrors.startDate && styles.inputError,
+                  ]}
+                  placeholder="Select start date"
+                  placeholderTextColor={COLORS.gray}
+                  value={formData.startDate}
+                  editable={false}
+                />
+              </TouchableOpacity>
+              {formErrors.startDate && (
+                <Text style={styles.errorText}>{formErrors.startDate}</Text>
+              )}
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>End Date</Text>
+              <TouchableOpacity
+                onPress={onShowEndDatePicker}
+                style={styles.dateInput}
+              >
+                <TextInput
+                  style={[
+                    styles.input,
+                    formErrors.endDate && styles.inputError,
+                  ]}
+                  placeholder="Select end date"
+                  placeholderTextColor={COLORS.gray}
+                  value={formData.endDate}
+                  editable={false}
+                />
+              </TouchableOpacity>
+              {formErrors.endDate && (
+                <Text style={styles.errorText}>{formErrors.endDate}</Text>
+              )}
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
             <TouchableOpacity
-              style={[styles.confirmationButton, styles.cancelButton]}
-              onPress={onCancel}
+              style={[styles.button, styles.cancelButton]}
+              onPress={onClose}
             >
-              <Text style={styles.buttonText} bold>Cancel</Text>
+              <Text style={styles.buttonText} bold>
+                Cancel
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.confirmationButton, styles.confirmButton]}
-              onPress={onConfirm}
+              style={[styles.button, styles.saveButton]}
+              onPress={onSave}
             >
-              <Text style={[styles.buttonText, { color: COLORS.white }]} bold>Delete</Text>
+              <Text style={[styles.buttonText, { color: COLORS.white }]} bold>
+                {isEdit ? "Save" : "Create"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
       </View>
     </Modal>
-  );
-});
+  ),
+);
+
+// Memoize the DatePickerComponent to prevent re-renders
+const DatePickerComponent = memo(
+  ({
+    showStartDatePicker,
+    showEndDatePicker,
+    formData,
+    onDateChange,
+    onClose,
+  }: {
+    showStartDatePicker: boolean;
+    showEndDatePicker: boolean;
+    formData: any;
+    onDateChange: (
+      event: any,
+      date: Date | undefined,
+      isStartDate: boolean,
+    ) => void;
+    onClose: () => void;
+  }) => {
+    const initialDate = getInitialDateForPicker(
+      showStartDatePicker ? formData.startDate : formData.endDate,
+    );
+
+    if (Platform.OS === "ios") {
+      return (
+        <Modal
+          transparent={true}
+          animationType="slide"
+          visible={showStartDatePicker || showEndDatePicker}
+          onRequestClose={onClose}
+          statusBarTranslucent={true}
+        >
+          <View style={styles.datePickerModalOverlay}>
+            <View style={styles.datePickerContent}>
+              <View style={styles.datePickerHeader}>
+                <TouchableOpacity onPress={onClose}>
+                  <Text style={styles.datePickerHeaderText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onClose}>
+                  <Text
+                    style={[
+                      styles.datePickerHeaderText,
+                      { color: COLORS.primary },
+                    ]}
+                  >
+                    Done
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={initialDate}
+                mode="date"
+                display="spinner"
+                onChange={(event, date) =>
+                  onDateChange(event, date, showStartDatePicker)
+                }
+                style={styles.datePicker}
+              />
+            </View>
+          </View>
+        </Modal>
+      );
+    }
+
+    return showStartDatePicker || showEndDatePicker ? (
+      <DateTimePicker
+        value={initialDate}
+        mode="date"
+        display="default"
+        onChange={(event, date) =>
+          onDateChange(event, date, showStartDatePicker)
+        }
+      />
+    ) : null;
+  },
+);
+
+const DeleteConfirmationDialog = memo(
+  ({
+    isVisible,
+    batch,
+    onConfirm,
+    onCancel,
+  }: {
+    isVisible: boolean;
+    batch: Batch;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }) => {
+    return (
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isVisible}
+        onRequestClose={onCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, styles.confirmationDialog]}>
+            <View style={styles.confirmationIcon}>
+              <MaterialCommunityIcons
+                name="alert-circle-outline"
+                size={48}
+                color={COLORS.error}
+              />
+            </View>
+            <Text style={styles.confirmationTitle} bold>
+              Delete Batch
+            </Text>
+            <Text style={styles.confirmationMessage}>
+              Are you sure you want to delete {batch.name}? This action cannot
+              be undone.
+            </Text>
+            <View style={styles.confirmationButtons}>
+              <TouchableOpacity
+                style={[styles.confirmationButton, styles.cancelButton]}
+                onPress={onCancel}
+              >
+                <Text style={styles.buttonText} bold>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmationButton, styles.confirmButton]}
+                onPress={onConfirm}
+              >
+                <Text style={[styles.buttonText, { color: COLORS.white }]} bold>
+                  Delete
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  },
+);
 
 const EmptyState = memo(() => (
   <View style={styles.emptyStateContainer}>
@@ -432,7 +489,9 @@ const EmptyState = memo(() => (
       color={COLORS.secondary}
       style={styles.emptyStateIcon}
     />
-    <Text style={styles.emptyStateTitle} bold>No Batches Yet</Text>
+    <Text style={styles.emptyStateTitle} bold>
+      No Batches Yet
+    </Text>
     <Text style={styles.emptyStateMessage}>
       Click the plus icon in the top right corner to add the first batch
     </Text>
@@ -456,7 +515,7 @@ const BatchSkeleton = () => {
             duration: 1000,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     };
 
@@ -474,8 +533,16 @@ const BatchSkeleton = () => {
         <View style={styles.batchHeaderContent}>
           <Animated.View style={[styles.skeletonIcon, { opacity }]} />
           <View style={styles.batchHeaderText}>
-            <Animated.View style={[styles.skeletonText, styles.skeletonTitle, { opacity }]} />
-            <Animated.View style={[styles.skeletonText, styles.skeletonSubtitle, { opacity }]} />
+            <Animated.View
+              style={[styles.skeletonText, styles.skeletonTitle, { opacity }]}
+            />
+            <Animated.View
+              style={[
+                styles.skeletonText,
+                styles.skeletonSubtitle,
+                { opacity },
+              ]}
+            />
           </View>
         </View>
       </View>
@@ -486,7 +553,7 @@ const BatchSkeleton = () => {
 export default function BatchesScreen() {
   const { action } = useLocalSearchParams();
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
@@ -495,8 +562,8 @@ export default function BatchesScreen() {
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [formData, setFormData] = useState({
-    id: '',
-    name: '',
+    id: "",
+    name: "",
     startDate: new Date().toLocaleDateString(),
     endDate: new Date().toLocaleDateString(),
     programs: [] as Program[],
@@ -508,7 +575,7 @@ export default function BatchesScreen() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (action === 'create') {
+    if (action === "create") {
       setIsModalVisible(true);
     }
   }, [action]);
@@ -529,7 +596,7 @@ export default function BatchesScreen() {
         setIsModalVisible(false);
         resetForm();
       }
-    }, [action])
+    }, [action]),
   );
 
   useEffect(() => {
@@ -549,43 +616,46 @@ export default function BatchesScreen() {
     try {
       await Promise.all([fetchBatches(), fetchPrograms()]);
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error("Error refreshing data:", error);
     }
     setRefreshing(false);
   };
 
   const fetchPrograms = async () => {
     try {
-      const programsSnapshot = await db.collection('programs')
-        .where('isDeleted', '==', false)
+      const programsSnapshot = await db
+        .collection("programs")
+        .where("isDeleted", "==", false)
         .get();
-      const fetchedPrograms = programsSnapshot.docs.map(doc => ({
+      const fetchedPrograms = programsSnapshot.docs.map((doc) => ({
         id: doc.id,
         name: doc.data().name,
         description: doc.data().description,
       })) as Program[];
       setPrograms(fetchedPrograms);
     } catch (error) {
-      console.error('Error fetching programs:', error);
-      Alert.alert('Error', 'Failed to fetch programs');
+      console.error("Error fetching programs:", error);
+      Alert.alert("Error", "Failed to fetch programs");
     }
   };
 
   const fetchBatches = async () => {
     try {
       setIsLoading(true);
-      const batchesSnapshot = await db.collection('batches')
-        .where('isDeleted', '==', false)
+      const batchesSnapshot = await db
+        .collection("batches")
+        .where("isDeleted", "==", false)
         .get();
 
-      const batchPromises = batchesSnapshot.docs.map(async doc => {
+      const batchPromises = batchesSnapshot.docs.map(async (doc) => {
         const batchData = doc.data();
-        
+
         // Get student count for this batch
-        const studentsSnapshot = await db.collection('batches')
+        const studentsSnapshot = await db
+          .collection("batches")
           .doc(doc.id)
-          .collection('students')
-          .where('isDeleted', '==', false)
+          .collection("students")
+          .where("isDeleted", "==", false)
           .get();
 
         return {
@@ -596,11 +666,11 @@ export default function BatchesScreen() {
         };
       });
 
-      const fetchedBatches = await Promise.all(batchPromises) as Batch[];
+      const fetchedBatches = (await Promise.all(batchPromises)) as Batch[];
       setBatches(fetchedBatches);
     } catch (error) {
-      console.error('Error fetching batches:', error);
-      Alert.alert('Error', 'Failed to fetch batches');
+      console.error("Error fetching batches:", error);
+      Alert.alert("Error", "Failed to fetch batches");
     } finally {
       setIsLoading(false);
     }
@@ -613,16 +683,16 @@ export default function BatchesScreen() {
   const handleDeleteConfirm = async () => {
     if (batchToDelete) {
       try {
-        await db.collection('batches').doc(batchToDelete.id).update({
+        await db.collection("batches").doc(batchToDelete.id).update({
           isDeleted: true,
           deletedAt: new Date().toISOString(),
         });
-        setBatches(batches.filter(b => b.id !== batchToDelete.id));
+        setBatches(batches.filter((b) => b.id !== batchToDelete.id));
         setExpandedBatchId(null);
         setBatchToDelete(null);
       } catch (error) {
-        console.error('Error deleting batch:', error);
-        Alert.alert('Error', 'Failed to delete batch');
+        console.error("Error deleting batch:", error);
+        Alert.alert("Error", "Failed to delete batch");
       }
     }
   };
@@ -641,24 +711,28 @@ export default function BatchesScreen() {
 
   const handleSaveEdit = () => {
     if (formData.id) {
-      setBatches(batches.map(batch =>
-        batch.id === formData.id
-          ? { ...batch, ...formData }
-          : batch
-      ));
+      setBatches(
+        batches.map((batch) =>
+          batch.id === formData.id ? { ...batch, ...formData } : batch,
+        ),
+      );
       setIsModalVisible(false);
     }
   };
 
   const formatDate = (date: Date) => {
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const year = date.getFullYear();
     return `${month}/${day}/${year}`;
   };
 
-  const handleDateChange = (event: any, selectedDate: Date | undefined, isStartDate: boolean) => {
-    if (Platform.OS === 'android') {
+  const handleDateChange = (
+    event: any,
+    selectedDate: Date | undefined,
+    isStartDate: boolean,
+  ) => {
+    if (Platform.OS === "android") {
       isStartDate ? setShowStartDatePicker(false) : setShowEndDatePicker(false);
     }
 
@@ -666,7 +740,7 @@ export default function BatchesScreen() {
       const formattedDate = formatDate(selectedDate);
       setFormData({
         ...formData,
-        [isStartDate ? 'startDate' : 'endDate']: formattedDate,
+        [isStartDate ? "startDate" : "endDate"]: formattedDate,
       });
     }
   };
@@ -677,7 +751,7 @@ export default function BatchesScreen() {
   };
 
   const filteredBatches = batches.filter((batch) =>
-    batch.name.toLowerCase().includes(searchQuery.toLowerCase())
+    batch.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const toggleExpand = (batchId: string) => {
@@ -700,14 +774,16 @@ export default function BatchesScreen() {
               color={COLORS.primary}
             />
             <View style={styles.batchHeaderText}>
-              <Text style={styles.batchName} bold>{batch.name}</Text>
+              <Text style={styles.batchName} bold>
+                {batch.name}
+              </Text>
               <Text style={styles.batchDates}>
                 {batch.startDate} - {batch.endDate}
               </Text>
             </View>
           </View>
           <MaterialCommunityIcons
-            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            name={isExpanded ? "chevron-up" : "chevron-down"}
             size={24}
             color={COLORS.primary}
           />
@@ -718,10 +794,12 @@ export default function BatchesScreen() {
             <View style={styles.detailRow}>
               <TouchableOpacity
                 style={styles.detailItem}
-                onPress={() => router.push({
-                  pathname: "/batches/[id]/programs",
-                  params: { id: batch.id }
-                })}
+                onPress={() =>
+                  router.push({
+                    pathname: "/batches/[id]/programs",
+                    params: { id: batch.id },
+                  })
+                }
               >
                 <MaterialCommunityIcons
                   name="book-open-variant"
@@ -734,10 +812,12 @@ export default function BatchesScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.detailItem}
-                onPress={() => router.push({
-                  pathname: "/batches/[id]/students",
-                  params: { id: batch.id }
-                })}
+                onPress={() =>
+                  router.push({
+                    pathname: "/batches/[id]/students",
+                    params: { id: batch.id },
+                  })
+                }
               >
                 <MaterialCommunityIcons
                   name="account-multiple"
@@ -759,7 +839,9 @@ export default function BatchesScreen() {
                   size={20}
                   color={COLORS.white}
                 />
-                <Text style={styles.actionButtonText} bold>Edit</Text>
+                <Text style={styles.actionButtonText} bold>
+                  Edit
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionButton, styles.deleteButton]}
@@ -770,7 +852,9 @@ export default function BatchesScreen() {
                   size={20}
                   color={COLORS.white}
                 />
-                <Text style={styles.actionButtonText} bold>Delete</Text>
+                <Text style={styles.actionButtonText} bold>
+                  Delete
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -780,22 +864,22 @@ export default function BatchesScreen() {
   };
 
   const handleNavigateToPrograms = () => {
-    router.push('/programs');
+    router.push("/programs");
   };
 
   const validateForm = () => {
     const errors: FormErrors = {};
 
     if (!formData.name.trim()) {
-      errors.name = 'Name is required';
+      errors.name = "Name is required";
     }
 
     if (!formData.startDate) {
-      errors.startDate = 'Start date is required';
+      errors.startDate = "Start date is required";
     }
 
     if (!formData.endDate) {
-      errors.endDate = 'End date is required';
+      errors.endDate = "End date is required";
     }
 
     // Remove program validation
@@ -820,72 +904,94 @@ export default function BatchesScreen() {
         programs: formData.programs,
         programCount: formData.programs.length,
         studentCount: 0,
-        createdBy: user?.id || '',
+        createdBy: user?.id || "",
         isDeleted: false,
         createdAt: new Date().toISOString(),
       };
 
       if (isEdit && formData.id) {
-        await db.collection('batches').doc(formData.id).update(batchData);
-        
+        await db.collection("batches").doc(formData.id).update(batchData);
+
         // Update program-batch relationships
-        const oldBatch = batches.find(b => b.id === formData.id);
+        const oldBatch = batches.find((b) => b.id === formData.id);
         if (oldBatch) {
           // Remove batch from programs that are no longer associated
           const removedPrograms = oldBatch.programs.filter(
-            oldProgram => !formData.programs.find(newProgram => newProgram.id === oldProgram.id)
+            (oldProgram) =>
+              !formData.programs.find(
+                (newProgram) => newProgram.id === oldProgram.id,
+              ),
           );
-          
+
           for (const program of removedPrograms) {
-            const programRef = db.collection('programs').doc(program.id.toString());
+            const programRef = db
+              .collection("programs")
+              .doc(program.id.toString());
             const programDoc = await programRef.get();
             const programData = programDoc.exists ? programDoc.data() : null;
             if (programData) {
-              const updatedBatches = programData.batches.filter((b: { id: string }) => b.id !== formData.id);
+              const updatedBatches = programData.batches.filter(
+                (b: { id: string }) => b.id !== formData.id,
+              );
               await programRef.update({
                 batches: updatedBatches,
-                batchCount: updatedBatches.length
+                batchCount: updatedBatches.length,
               });
             }
           }
         }
-        
+
         // Add batch to new programs
         for (const program of formData.programs) {
-          const programRef = db.collection('programs').doc(program.id.toString());
+          const programRef = db
+            .collection("programs")
+            .doc(program.id.toString());
           const programDoc = await programRef.get();
           const programData = programDoc.exists ? programDoc.data() : null;
-          if (programData && !programData.batches?.find((b: { id: string }) => b.id === formData.id)) {
-            const updatedBatches = [...(programData.batches || []), {
-              id: formData.id,
-              name: formData.name,
-              startDate: formData.startDate,
-              endDate: formData.endDate
-            }];
+          if (
+            programData &&
+            !programData.batches?.find(
+              (b: { id: string }) => b.id === formData.id,
+            )
+          ) {
+            const updatedBatches = [
+              ...(programData.batches || []),
+              {
+                id: formData.id,
+                name: formData.name,
+                startDate: formData.startDate,
+                endDate: formData.endDate,
+              },
+            ];
             await programRef.update({
               batches: updatedBatches,
-              batchCount: updatedBatches.length
+              batchCount: updatedBatches.length,
             });
           }
         }
       } else {
-        const docRef = await db.collection('batches').add(batchData);
-        
+        const docRef = await db.collection("batches").add(batchData);
+
         // Add batch to selected programs
         for (const program of formData.programs) {
-          const programRef = db.collection('programs').doc(program.id.toString());
+          const programRef = db
+            .collection("programs")
+            .doc(program.id.toString());
           const programDoc = await programRef.get();
           const programData = programDoc.exists ? programDoc.data() : null;
           if (programData) {
-            const updatedBatches = [...(programData.batches || []), {
-              id: docRef.id,
-              name: formData.name,
-              startDate: formData.startDate,
-              endDate: formData.endDate
-            }];
+            const updatedBatches = [
+              ...(programData.batches || []),
+              {
+                id: docRef.id,
+                name: formData.name,
+                startDate: formData.startDate,
+                endDate: formData.endDate,
+              },
+            ];
             await programRef.update({
               batches: updatedBatches,
-              batchCount: updatedBatches.length
+              batchCount: updatedBatches.length,
             });
           }
         }
@@ -895,15 +1001,15 @@ export default function BatchesScreen() {
       setIsModalVisible(false);
       fetchBatches();
     } catch (error) {
-      console.error('Error saving batch:', error);
-      Alert.alert('Error', 'Failed to save batch');
+      console.error("Error saving batch:", error);
+      Alert.alert("Error", "Failed to save batch");
     }
   };
 
   const resetForm = () => {
     setFormData({
-      id: '',
-      name: '',
+      id: "",
+      name: "",
       startDate: new Date().toLocaleDateString(),
       endDate: new Date().toLocaleDateString(),
       programs: [],
@@ -913,25 +1019,30 @@ export default function BatchesScreen() {
   };
 
   const clearError = (field: keyof FormErrors) => {
-    setFormErrors(prev => ({ ...prev, [field]: undefined }));
+    setFormErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={[
-          styles.searchContainer,
-          (isLoading || batches.length === 0) && styles.searchContainerDisabled
-        ]}>
+        <View
+          style={[
+            styles.searchContainer,
+            (isLoading || batches.length === 0) &&
+              styles.searchContainerDisabled,
+          ]}
+        >
           <MaterialCommunityIcons
             name="magnify"
             size={24}
-            color={(isLoading || batches.length === 0) ? COLORS.gray : COLORS.primary}
+            color={
+              isLoading || batches.length === 0 ? COLORS.gray : COLORS.primary
+            }
           />
           <TextInput
             style={[
               styles.searchInput,
-              (isLoading || batches.length === 0) && styles.searchInputDisabled
+              (isLoading || batches.length === 0) && styles.searchInputDisabled,
             ]}
             placeholder="Search batches..."
             placeholderTextColor={COLORS.gray}
@@ -940,7 +1051,7 @@ export default function BatchesScreen() {
             editable={!isLoading && batches.length > 0}
           />
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => setIsModalVisible(true)}
         >
@@ -1041,16 +1152,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
   searchContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.white,
     borderRadius: BORDER_RADIUS.md,
     paddingHorizontal: SPACING.sm,
@@ -1080,14 +1191,14 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
   },
   batchHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: SPACING.md,
   },
   batchHeaderContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   batchHeaderText: {
     marginLeft: SPACING.md,
@@ -1107,13 +1218,13 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.border,
   },
   detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    justifyContent: "space-around",
     marginBottom: SPACING.md,
   },
   detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   detailText: {
     marginLeft: SPACING.sm,
@@ -1121,14 +1232,14 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
   },
   actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   actionButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: COLORS.primary,
     padding: SPACING.sm,
     borderRadius: BORDER_RADIUS.sm,
@@ -1144,21 +1255,21 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
     backgroundColor: COLORS.white,
     borderRadius: BORDER_RADIUS.md,
-    width: '90%',
-    maxHeight: '80%',
+    width: "90%",
+    maxHeight: "80%",
     ...SHADOWS.medium,
   },
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -1186,8 +1297,8 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     padding: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
@@ -1209,7 +1320,7 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
   },
   dateInput: {
-    width: '100%',
+    width: "100%",
   },
   datePicker: {
     backgroundColor: COLORS.white,
@@ -1217,8 +1328,8 @@ const styles = StyleSheet.create({
   },
   datePickerModalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     zIndex: 1000, // Ensure it's above other modals
   },
   datePickerContent: {
@@ -1229,8 +1340,8 @@ const styles = StyleSheet.create({
     zIndex: 1001, // Ensure it's above the overlay
   },
   datePickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     padding: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -1240,9 +1351,9 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   programSelectorButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     backgroundColor: COLORS.lightGray,
     borderRadius: BORDER_RADIUS.sm,
     padding: SPACING.sm,
@@ -1259,8 +1370,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.small,
   },
   programItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: SPACING.sm,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -1287,7 +1398,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.lightGray,
     borderRadius: BORDER_RADIUS.sm,
     padding: SPACING.md,
-    alignItems: 'center',
+    alignItems: "center",
   },
   programSelectorEmptyText: {
     fontSize: FONT_SIZES.md,
@@ -1295,8 +1406,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   programSelectorEmptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.primary,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
@@ -1317,29 +1428,29 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   confirmationDialog: {
-    width: '80%',
+    width: "80%",
     maxWidth: 400,
     padding: SPACING.lg,
   },
   confirmationIcon: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: SPACING.md,
   },
   confirmationTitle: {
     fontSize: FONT_SIZES.lg,
     color: COLORS.text,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: SPACING.sm,
   },
   confirmationMessage: {
     fontSize: FONT_SIZES.md,
     color: COLORS.textLight,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: SPACING.lg,
   },
   confirmationButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: SPACING.md,
   },
   confirmationButton: {
@@ -1347,15 +1458,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     borderRadius: BORDER_RADIUS.sm,
     minWidth: 100,
-    alignItems: 'center',
+    alignItems: "center",
   },
   confirmButton: {
     backgroundColor: COLORS.error,
   },
   emptyStateContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: SPACING.xl,
   },
   emptyStateIcon: {
@@ -1366,12 +1477,12 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.xl,
     color: COLORS.text,
     marginBottom: SPACING.sm,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyStateMessage: {
     fontSize: FONT_SIZES.md,
     color: COLORS.textLight,
-    textAlign: 'center',
+    textAlign: "center",
     maxWidth: 300,
   },
   searchContainerDisabled: {
@@ -1401,4 +1512,4 @@ const styles = StyleSheet.create({
     width: 100,
     height: 14,
   },
-}); 
+});

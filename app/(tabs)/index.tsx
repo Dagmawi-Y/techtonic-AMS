@@ -1,11 +1,24 @@
-import { View, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, Animated } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
-import { Text } from '../../components';
-import { router, useFocusEffect } from 'expo-router';
-import { db } from '../../config/firebase';
-import { useAuthStore } from '../../store/authStore';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  RefreshControl,
+  Animated,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  COLORS,
+  SPACING,
+  FONT_SIZES,
+  BORDER_RADIUS,
+  SHADOWS,
+} from "../../constants/theme";
+import { Text } from "../../components";
+import { router, useFocusEffect } from "expo-router";
+import { db } from "../../config/firebase";
+import { useAuthStore } from "../../store/authStore";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 interface StatCardProps {
   title: string;
@@ -14,7 +27,7 @@ interface StatCardProps {
 }
 
 interface ActivityItemProps {
-  type: 'attendance' | 'registration' | 'batch';
+  type: "attendance" | "registration" | "batch";
   description: string;
   time: string;
 }
@@ -28,7 +41,7 @@ interface Stats {
 
 interface Activity {
   id: string;
-  type: 'attendance' | 'registration' | 'batch';
+  type: "attendance" | "registration" | "batch";
   description: string;
   time: string;
   timestamp: Date;
@@ -51,7 +64,7 @@ const ActivitySkeleton = () => {
             duration: 1000,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     };
 
@@ -67,14 +80,18 @@ const ActivitySkeleton = () => {
     <View style={styles.activityItem}>
       <Animated.View style={[styles.skeletonIcon, { opacity }]} />
       <View style={styles.activityContent}>
-        <Animated.View style={[styles.skeletonText, styles.skeletonTitle, { opacity }]} />
-        <Animated.View style={[styles.skeletonText, styles.skeletonSubtitle, { opacity }]} />
+        <Animated.View
+          style={[styles.skeletonText, styles.skeletonTitle, { opacity }]}
+        />
+        <Animated.View
+          style={[styles.skeletonText, styles.skeletonSubtitle, { opacity }]}
+        />
       </View>
     </View>
   );
 };
 
-const StatSkeleton = ({ title, icon }: Omit<StatCardProps, 'value'>) => {
+const StatSkeleton = ({ title, icon }: Omit<StatCardProps, "value">) => {
   const shimmerValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -91,7 +108,7 @@ const StatSkeleton = ({ title, icon }: Omit<StatCardProps, 'value'>) => {
             duration: 1000,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     };
 
@@ -106,7 +123,9 @@ const StatSkeleton = ({ title, icon }: Omit<StatCardProps, 'value'>) => {
   return (
     <View style={styles.statCard}>
       <MaterialCommunityIcons name={icon} size={32} color={COLORS.primary} />
-      <Animated.View style={[styles.skeletonText, styles.skeletonStatValue, { opacity }]} />
+      <Animated.View
+        style={[styles.skeletonText, styles.skeletonStatValue, { opacity }]}
+      />
       <Text style={styles.statTitle}>{title}</Text>
     </View>
   );
@@ -121,7 +140,9 @@ const EmptyActivity = () => (
       style={styles.emptyIcon}
     />
     <Text style={styles.emptyText}>No recent activity</Text>
-    <Text style={styles.emptySubtext}>Activities will appear here as you use the app</Text>
+    <Text style={styles.emptySubtext}>
+      Activities will appear here as you use the app
+    </Text>
   </View>
 );
 
@@ -140,33 +161,37 @@ export default function DashboardScreen() {
   const fetchStats = async () => {
     try {
       // Fetch active batches count
-      const batchesSnapshot = await db.collection('batches')
-        .where('isDeleted', '==', false)
+      const batchesSnapshot = await db
+        .collection("batches")
+        .where("isDeleted", "==", false)
         .get();
       const batchesCount = batchesSnapshot.size;
 
       // Fetch active programs count
-      const programsSnapshot = await db.collection('programs')
-        .where('isDeleted', '==', false)
+      const programsSnapshot = await db
+        .collection("programs")
+        .where("isDeleted", "==", false)
         .get();
       const programsCount = programsSnapshot.size;
 
       // Fetch active students count
-      const studentsSnapshot = await db.collection('students')
-        .where('isDeleted', '==', false)
+      const studentsSnapshot = await db
+        .collection("students")
+        .where("isDeleted", "==", false)
         .get();
       const studentsCount = studentsSnapshot.size;
 
       // Calculate average attendance
-      const attendanceSnapshot = await db.collection('attendance')
-        .orderBy('createdAt', 'desc')
+      const attendanceSnapshot = await db
+        .collection("attendance")
+        .orderBy("createdAt", "desc")
         .limit(100) // Get last 100 attendance records
         .get();
 
       let totalAttendance = 0;
       let totalRecords = 0;
 
-      attendanceSnapshot.docs.forEach(doc => {
+      attendanceSnapshot.docs.forEach((doc) => {
         const data = doc.data();
         const records = data.records || [];
         const presentCount = records.filter((r: any) => r.isPresent).length;
@@ -177,9 +202,8 @@ export default function DashboardScreen() {
         }
       });
 
-      const averageAttendance = totalRecords > 0 
-        ? Math.round(totalAttendance / totalRecords) 
-        : 0;
+      const averageAttendance =
+        totalRecords > 0 ? Math.round(totalAttendance / totalRecords) : 0;
 
       setStats({
         batches: batchesCount,
@@ -188,7 +212,7 @@ export default function DashboardScreen() {
         attendance: averageAttendance,
       });
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error("Error fetching stats:", error);
     }
   };
 
@@ -198,33 +222,40 @@ export default function DashboardScreen() {
       const activities: Activity[] = [];
 
       // Fetch recent attendance records
-      const attendanceSnapshot = await db.collection('attendance')
-        .orderBy('createdAt', 'desc')
+      const attendanceSnapshot = await db
+        .collection("attendance")
+        .orderBy("createdAt", "desc")
         .limit(5)
         .get();
 
       for (const doc of attendanceSnapshot.docs) {
         const data = doc.data();
-        const batchDoc = await db.collection('batches').doc(data.batchId).get();
-        const programDoc = await db.collection('programs').doc(data.programId).get();
-        
+        const batchDoc = await db.collection("batches").doc(data.batchId).get();
+        const programDoc = await db
+          .collection("programs")
+          .doc(data.programId)
+          .get();
+
         if (batchDoc.exists && programDoc.exists) {
           const batchName = batchDoc.data()?.name;
           const programName = programDoc.data()?.name;
-          
+
           activities.push({
             id: doc.id,
-            type: 'attendance',
+            type: "attendance",
             description: `Attendance marked for ${batchName} - ${programName}`,
             timestamp: data.createdAt ? new Date(data.createdAt) : new Date(),
-            time: getTimeAgo(data.createdAt ? new Date(data.createdAt) : new Date()),
+            time: getTimeAgo(
+              data.createdAt ? new Date(data.createdAt) : new Date(),
+            ),
           });
         }
       }
 
       // Fetch recent student registrations
-      const studentsSnapshot = await db.collection('students')
-        .orderBy('createdAt', 'desc')
+      const studentsSnapshot = await db
+        .collection("students")
+        .orderBy("createdAt", "desc")
         .limit(5)
         .get();
 
@@ -232,16 +263,19 @@ export default function DashboardScreen() {
         const data = doc.data();
         activities.push({
           id: doc.id,
-          type: 'registration',
+          type: "registration",
           description: `New student ${data.name} registered`,
           timestamp: data.createdAt ? new Date(data.createdAt) : new Date(),
-          time: getTimeAgo(data.createdAt ? new Date(data.createdAt) : new Date()),
+          time: getTimeAgo(
+            data.createdAt ? new Date(data.createdAt) : new Date(),
+          ),
         });
       }
 
       // Fetch recent batch creations
-      const batchesSnapshot = await db.collection('batches')
-        .orderBy('createdAt', 'desc')
+      const batchesSnapshot = await db
+        .collection("batches")
+        .orderBy("createdAt", "desc")
         .limit(5)
         .get();
 
@@ -249,10 +283,12 @@ export default function DashboardScreen() {
         const data = doc.data();
         activities.push({
           id: doc.id,
-          type: 'batch',
+          type: "batch",
           description: `New batch ${data.name} created`,
           timestamp: data.createdAt ? new Date(data.createdAt) : new Date(),
-          time: getTimeAgo(data.createdAt ? new Date(data.createdAt) : new Date()),
+          time: getTimeAgo(
+            data.createdAt ? new Date(data.createdAt) : new Date(),
+          ),
         });
       }
 
@@ -260,7 +296,7 @@ export default function DashboardScreen() {
       activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
       setRecentActivity(activities.slice(0, 5));
     } catch (error) {
-      console.error('Error fetching recent activity:', error);
+      console.error("Error fetching recent activity:", error);
     } finally {
       setIsLoading(false);
     }
@@ -269,30 +305,27 @@ export default function DashboardScreen() {
   const getTimeAgo = (date: Date) => {
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) {
-      return 'Just now';
+      return "Just now";
     } else if (diffInSeconds < 3600) {
       const minutes = Math.floor(diffInSeconds / 60);
-      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+      return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
     } else if (diffInSeconds < 86400) {
       const hours = Math.floor(diffInSeconds / 3600);
-      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+      return `${hours} hour${hours > 1 ? "s" : ""} ago`;
     } else {
       const days = Math.floor(diffInSeconds / 86400);
-      return `${days} day${days > 1 ? 's' : ''} ago`;
+      return `${days} day${days > 1 ? "s" : ""} ago`;
     }
   };
 
   const fetchInitialData = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        fetchStats(),
-        fetchRecentActivity(),
-      ]);
+      await Promise.all([fetchStats(), fetchRecentActivity()]);
     } catch (error) {
-      console.error('Error fetching initial data:', error);
+      console.error("Error fetching initial data:", error);
     }
     setRefreshing(false);
   };
@@ -305,23 +338,23 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchInitialData();
-    }, [])
+    }, []),
   );
 
   const StatCard = ({ title, value, icon }: StatCardProps) => {
     const handlePress = () => {
       switch (title.toLowerCase()) {
-        case 'batches':
-          router.push('/batches');
+        case "batches":
+          router.push("/batches");
           break;
-        case 'programs':
-          router.push('/programs');
+        case "programs":
+          router.push("/programs");
           break;
-        case 'students':
-          router.push('/students');
+        case "students":
+          router.push("/students");
           break;
-        case 'attendance %':
-          router.push('/reports');
+        case "attendance %":
+          router.push("/reports");
           break;
       }
     };
@@ -329,7 +362,9 @@ export default function DashboardScreen() {
     return (
       <TouchableOpacity style={styles.statCard} onPress={handlePress}>
         <MaterialCommunityIcons name={icon} size={32} color={COLORS.primary} />
-        <Text style={styles.statValue} bold>{value}</Text>
+        <Text style={styles.statValue} bold>
+          {value}
+        </Text>
         <Text style={styles.statTitle}>{title}</Text>
       </TouchableOpacity>
     );
@@ -340,11 +375,11 @@ export default function DashboardScreen() {
       <View style={styles.activityIcon}>
         <MaterialCommunityIcons
           name={
-            type === 'attendance'
-              ? 'calendar-check'
-              : type === 'registration'
-              ? 'account-plus'
-              : 'school'
+            type === "attendance"
+              ? "calendar-check"
+              : type === "registration"
+                ? "account-plus"
+                : "school"
           }
           size={24}
           color={COLORS.primary}
@@ -358,8 +393,8 @@ export default function DashboardScreen() {
   );
 
   return (
-    <ScrollView 
-      style={styles.container} 
+    <ScrollView
+      style={styles.container}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
@@ -371,29 +406,19 @@ export default function DashboardScreen() {
       }
     >
       <View style={styles.header}>
-        <Text style={styles.welcomeText} bold>Welcome, {user?.name || 'Admin'}!</Text>
+        <Text style={styles.welcomeText} bold>
+          Welcome, {user?.name || "Admin"}!
+        </Text>
         <Text style={styles.dateText}>{new Date().toLocaleDateString()}</Text>
       </View>
 
       <View style={styles.statsContainer}>
         {isLoading ? (
           <>
-            <StatSkeleton
-              title="Batches"
-              icon="account-group"
-            />
-            <StatSkeleton
-              title="Programs"
-              icon="book-open-variant"
-            />
-            <StatSkeleton
-              title="Students"
-              icon="account-multiple"
-            />
-            <StatSkeleton
-              title="Attendance Overall %"
-              icon="chart-line"
-            />
+            <StatSkeleton title="Batches" icon="account-group" />
+            <StatSkeleton title="Programs" icon="book-open-variant" />
+            <StatSkeleton title="Students" icon="account-multiple" />
+            <StatSkeleton title="Attendance Overall %" icon="chart-line" />
           </>
         ) : (
           <>
@@ -422,7 +447,9 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle} bold>Recent Activity</Text>
+        <Text style={styles.sectionTitle} bold>
+          Recent Activity
+        </Text>
         {isLoading ? (
           <>
             <ActivitySkeleton />
@@ -438,66 +465,90 @@ export default function DashboardScreen() {
         )}
       </View>
 
-      <View style={{...styles.section, marginBottom: '5%'}}>
-        <Text style={styles.sectionTitle} bold>Quick Actions</Text>
+      <View style={{ ...styles.section, marginBottom: "5%" }}>
+        <Text style={styles.sectionTitle} bold>
+          Quick Actions
+        </Text>
         <View style={styles.quickActions}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.quickActionButton}
-            onPress={() => router.push({
-              pathname: '/students',
-              params: { action: 'add' }
-            })}
+            onPress={() =>
+              router.push({
+                pathname: "/students",
+                params: { action: "add" },
+              })
+            }
           >
             <MaterialCommunityIcons
               name="account-plus"
               size={24}
               color={COLORS.white}
             />
-            <Text style={styles.quickActionText} bold>Add Student</Text>
+            <Text style={styles.quickActionText} bold>
+              Add Student
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.quickActionButton}
-            onPress={() => router.push({
-              pathname: '/attendance',
-              params: { action: 'mark' }
-            })}
+            onPress={() =>
+              router.push({
+                pathname: "/attendance",
+                params: { action: "mark" },
+              })
+            }
           >
             <MaterialCommunityIcons
               name="calendar-plus"
               size={24}
               color={COLORS.white}
             />
-            <Text style={styles.quickActionText} bold>Mark Attendance</Text>
+            <Text style={styles.quickActionText} bold>
+              Mark Attendance
+            </Text>
           </TouchableOpacity>
         </View>
         <View style={[styles.quickActions, { marginTop: SPACING.md }]}>
-          <TouchableOpacity 
-            style={[styles.quickActionButton, { backgroundColor: COLORS.primary }]}
-            onPress={() => router.push({
-              pathname: '/batches',
-              params: { action: 'create' }
-            })}
+          <TouchableOpacity
+            style={[
+              styles.quickActionButton,
+              { backgroundColor: COLORS.primary },
+            ]}
+            onPress={() =>
+              router.push({
+                pathname: "/batches",
+                params: { action: "create" },
+              })
+            }
           >
             <MaterialCommunityIcons
               name="account-group"
               size={24}
               color={COLORS.white}
             />
-            <Text style={styles.quickActionText} bold>Create Batch</Text>
+            <Text style={styles.quickActionText} bold>
+              Create Batch
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.quickActionButton, { backgroundColor: COLORS.primary }]}
-            onPress={() => router.push({
-              pathname: '/programs',
-              params: { action: 'create' }
-            })}
+          <TouchableOpacity
+            style={[
+              styles.quickActionButton,
+              { backgroundColor: COLORS.primary },
+            ]}
+            onPress={() =>
+              router.push({
+                pathname: "/programs",
+                params: { action: "create" },
+              })
+            }
           >
             <MaterialCommunityIcons
               name="book-open-variant"
               size={24}
               color={COLORS.white}
             />
-            <Text style={styles.quickActionText} bold>Create Program</Text>
+            <Text style={styles.quickActionText} bold>
+              Create Program
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -526,19 +577,19 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   statsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     padding: SPACING.sm,
     marginTop: -SPACING.xl,
     minHeight: 160,
   },
   statCard: {
-    width: '48%',
+    width: "48%",
     backgroundColor: COLORS.white,
     padding: SPACING.lg,
-    margin: '1%',
+    margin: "1%",
     borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
+    alignItems: "center",
     ...SHADOWS.medium,
   },
   statValue: {
@@ -559,8 +610,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   activityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.white,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
@@ -572,8 +623,8 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: BORDER_RADIUS.sm,
     backgroundColor: COLORS.lightGray,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: SPACING.md,
   },
   activityContent: {
@@ -589,17 +640,17 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   quickActionButton: {
     flex: 0.48,
     backgroundColor: COLORS.secondary,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
     ...SHADOWS.small,
   },
   quickActionText: {
@@ -619,25 +670,25 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.sm,
   },
   skeletonTitle: {
-    width: '70%',
+    width: "70%",
     height: 16,
     marginBottom: SPACING.xs,
   },
   skeletonSubtitle: {
-    width: '40%',
+    width: "40%",
     height: 14,
   },
   skeletonStatValue: {
-    width: '40%',
+    width: "40%",
     height: 24,
     marginVertical: SPACING.xs,
   },
   skeletonStatTitle: {
-    width: '60%',
+    width: "60%",
     height: 14,
   },
   emptyContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     padding: SPACING.xl,
     backgroundColor: COLORS.white,
     borderRadius: BORDER_RADIUS.md,
@@ -655,6 +706,6 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textLight,
-    textAlign: 'center',
+    textAlign: "center",
   },
-}); 
+});

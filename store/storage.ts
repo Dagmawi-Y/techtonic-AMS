@@ -1,5 +1,5 @@
-import { MMKV } from 'react-native-mmkv';
-import { StateStorage } from 'zustand/middleware';
+import { MMKV } from "react-native-mmkv";
+import { StateStorage } from "zustand/middleware";
 
 export const storage = new MMKV();
 
@@ -14,4 +14,4 @@ export const mmkvStorage: StateStorage = {
   removeItem: (name) => {
     return storage.delete(name);
   },
-}; 
+};

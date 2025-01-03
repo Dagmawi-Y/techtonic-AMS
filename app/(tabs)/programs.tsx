@@ -1,11 +1,26 @@
-import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert, RefreshControl, Animated } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
-import { Text, TextInput } from '../../components';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { db } from '../../config/firebase';
-import { useAuthStore } from '../../store/authStore';
+import React, { useState, useEffect, memo, useCallback, useRef } from "react";
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  Alert,
+  RefreshControl,
+  Animated,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  COLORS,
+  SPACING,
+  FONT_SIZES,
+  BORDER_RADIUS,
+  SHADOWS,
+} from "../../constants/theme";
+import { Text, TextInput } from "../../components";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
+import { db } from "../../config/firebase";
+import { useAuthStore } from "../../store/authStore";
 
 interface Batch {
   id: string;
@@ -27,292 +42,145 @@ interface Program {
   createdAt: string;
 }
 
+const BatchSelector = memo(
+  ({
+    batches,
+    selectedBatches,
+    onSelect,
+    onNavigateToBatches,
+  }: {
+    batches: Batch[];
+    selectedBatches: Batch[];
+    onSelect: (batches: Batch[]) => void;
+    onNavigateToBatches: () => void;
+  }) => {
+    const [isOpen, setIsOpen] = useState(false);
 
-const BatchSelector = memo(({ 
-  batches,
-  selectedBatches,
-  onSelect,
-  onNavigateToBatches
-}: {
-  batches: Batch[];
-  selectedBatches: Batch[];
-  onSelect: (batches: Batch[]) => void;
-  onNavigateToBatches: () => void;
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  if (batches.length === 0) {
-    return (
-      <View style={styles.batchSelectorEmpty}>
-        <Text style={styles.batchSelectorEmptyText}>No batches available</Text>
-        <TouchableOpacity
-          style={styles.batchSelectorEmptyButton}
-          onPress={onNavigateToBatches}
-        >
-          <MaterialCommunityIcons name="plus" size={20} color={COLORS.white} />
-          <Text style={styles.batchSelectorEmptyButtonText} bold>Add Batch</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  return (
-    <View>
-      <TouchableOpacity
-        style={styles.batchSelectorButton}
-        onPress={() => setIsOpen(!isOpen)}
-      >
-        <Text style={styles.batchSelectorButtonText}>
-          {selectedBatches.length === 0
-            ? 'Select Batches'
-            : `${selectedBatches.length} Batch${selectedBatches.length === 1 ? '' : 'es'} Selected`}
-        </Text>
-        <MaterialCommunityIcons
-          name={isOpen ? 'chevron-up' : 'chevron-down'}
-          size={24}
-          color={COLORS.text}
-        />
-      </TouchableOpacity>
-
-      {isOpen && (
-        <View style={styles.batchList}>
-          {batches.map((batch) => {
-            const isSelected = selectedBatches.some(b => b.id === batch.id);
-            return (
-              <TouchableOpacity
-                key={batch.id}
-                style={[
-                  styles.batchItem,
-                  isSelected && styles.batchItemSelected
-                ]}
-                onPress={() => {
-                  if (isSelected) {
-                    onSelect(selectedBatches.filter(b => b.id !== batch.id));
-                  } else {
-                    onSelect([...selectedBatches, batch]);
-                  }
-                }}
-              >
-                <View style={styles.batchItemContent}>
-                  <Text style={[
-                    styles.batchItemText,
-                    isSelected && styles.batchItemTextSelected
-                  ]} bold>{batch.name}</Text>
-                  <Text style={styles.batchItemDates} numberOfLines={1}>
-                    {batch.startDate} - {batch.endDate}
-                  </Text>
-                </View>
-                {isSelected && (
-                  <MaterialCommunityIcons
-                    name="check"
-                    size={20}
-                    color={COLORS.white}
-                  />
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
-    </View>
-  );
-});
-
-const ProgramModal = memo(({ 
-  isVisible, 
-  onClose,
-  formData,
-  onUpdateForm,
-  onNavigateToBatches,
-  onSave,
-  availableBatches,
-  isEdit,
-}: {
-  isVisible: boolean;
-  onClose: () => void;
-  formData: any;
-  onUpdateForm: (data: any) => void;
-  onNavigateToBatches: () => void;
-  onSave: () => void;
-  availableBatches: Batch[];
-  isEdit: boolean;
-}) => (
-  <Modal
-    animationType="fade"
-    transparent={true}
-    visible={isVisible}
-    onRequestClose={onClose}
-  >
-    <View style={styles.modalOverlay}>
-      <View style={styles.modalContent}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle} bold>{isEdit ? 'Edit Program' : 'Create New Program'}</Text>
-          <TouchableOpacity onPress={onClose}>
+    if (batches.length === 0) {
+      return (
+        <View style={styles.batchSelectorEmpty}>
+          <Text style={styles.batchSelectorEmptyText}>
+            No batches available
+          </Text>
+          <TouchableOpacity
+            style={styles.batchSelectorEmptyButton}
+            onPress={onNavigateToBatches}
+          >
             <MaterialCommunityIcons
-              name="close"
-              size={24}
-              color={COLORS.text}
+              name="plus"
+              size={20}
+              color={COLORS.white}
             />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.modalBody}>
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Program Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter program name"
-              placeholderTextColor={COLORS.gray}
-              value={formData.name}
-              onChangeText={(text) => onUpdateForm({ ...formData, name: text })}
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Enter program description"
-              placeholderTextColor={COLORS.gray}
-              multiline
-              numberOfLines={4}
-              value={formData.description}
-              onChangeText={(text) => onUpdateForm({ ...formData, description: text })}
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Duration (weeks)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter duration"
-              placeholderTextColor={COLORS.gray}
-              keyboardType="numeric"
-              value={formData.duration}
-              onChangeText={(text) => onUpdateForm({ ...formData, duration: text })}
-            />
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Batches</Text>
-            <BatchSelector
-              batches={availableBatches}
-              selectedBatches={formData.batches}
-              onSelect={(batches) => onUpdateForm({ ...formData, batches })}
-              onNavigateToBatches={onNavigateToBatches}
-            />
-          </View>
-        </ScrollView>
-
-        <View style={styles.modalFooter}>
-          <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
-            onPress={onClose}
-          >
-            <Text style={styles.buttonText} bold>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.saveButton]}
-            onPress={onSave}
-          >
-            <Text style={[styles.buttonText, { color: COLORS.white }]} bold>
-              {isEdit ? 'Save' : 'Create'}
+            <Text style={styles.batchSelectorEmptyButtonText} bold>
+              Add Batch
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </View>
-  </Modal>
-));
-
-const DeleteConfirmationDialog = memo(({
-  isVisible,
-  program,
-  onConfirm,
-  onCancel,
-}: {
-  isVisible: boolean;
-  program: Program;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) => {
-  return (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={isVisible}
-      onRequestClose={onCancel}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, styles.confirmationDialog]}>
-          <View style={styles.confirmationIcon}>
-            <MaterialCommunityIcons
-              name="alert-circle-outline"
-              size={48}
-              color={COLORS.error}
-            />
-          </View>
-          <Text style={styles.confirmationTitle} bold>Delete Program</Text>
-          <Text style={styles.confirmationMessage}>
-            Are you sure you want to delete {program.name}? This action cannot be undone.
-          </Text>
-          <View style={styles.confirmationButtons}>
-            <TouchableOpacity
-              style={[styles.confirmationButton, styles.cancelButton]}
-              onPress={onCancel}
-            >
-              <Text style={styles.buttonText} bold>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.confirmationButton, styles.confirmButton]}
-              onPress={onConfirm}
-            >
-              <Text style={[styles.buttonText, { color: COLORS.white }]} bold>Delete</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-});
-
-const ProgramDetailsModal = memo(({ 
-  isVisible,
-  onClose,
-  program,
-  onDelete,
-  onEdit,
-}: {
-  isVisible: boolean;
-  onClose: () => void;
-  program: Program | null;
-  onDelete: (programId: string) => void;
-  onEdit: (program: Program) => void;
-}) => {
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-
-  useEffect(() => {
-    if (!isVisible || !program) {
-      setShowDeleteConfirmation(false);
+      );
     }
-  }, [isVisible, program]);
 
-  if (!program) return null;
+    return (
+      <View>
+        <TouchableOpacity
+          style={styles.batchSelectorButton}
+          onPress={() => setIsOpen(!isOpen)}
+        >
+          <Text style={styles.batchSelectorButtonText}>
+            {selectedBatches.length === 0
+              ? "Select Batches"
+              : `${selectedBatches.length} Batch${selectedBatches.length === 1 ? "" : "es"} Selected`}
+          </Text>
+          <MaterialCommunityIcons
+            name={isOpen ? "chevron-up" : "chevron-down"}
+            size={24}
+            color={COLORS.text}
+          />
+        </TouchableOpacity>
 
-  return (
+        {isOpen && (
+          <View style={styles.batchList}>
+            {batches.map((batch) => {
+              const isSelected = selectedBatches.some((b) => b.id === batch.id);
+              return (
+                <TouchableOpacity
+                  key={batch.id}
+                  style={[
+                    styles.batchItem,
+                    isSelected && styles.batchItemSelected,
+                  ]}
+                  onPress={() => {
+                    if (isSelected) {
+                      onSelect(
+                        selectedBatches.filter((b) => b.id !== batch.id),
+                      );
+                    } else {
+                      onSelect([...selectedBatches, batch]);
+                    }
+                  }}
+                >
+                  <View style={styles.batchItemContent}>
+                    <Text
+                      style={[
+                        styles.batchItemText,
+                        isSelected && styles.batchItemTextSelected,
+                      ]}
+                      bold
+                    >
+                      {batch.name}
+                    </Text>
+                    <Text style={styles.batchItemDates} numberOfLines={1}>
+                      {batch.startDate} - {batch.endDate}
+                    </Text>
+                  </View>
+                  {isSelected && (
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={20}
+                      color={COLORS.white}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
+  },
+);
+
+const ProgramModal = memo(
+  ({
+    isVisible,
+    onClose,
+    formData,
+    onUpdateForm,
+    onNavigateToBatches,
+    onSave,
+    availableBatches,
+    isEdit,
+  }: {
+    isVisible: boolean;
+    onClose: () => void;
+    formData: any;
+    onUpdateForm: (data: any) => void;
+    onNavigateToBatches: () => void;
+    onSave: () => void;
+    availableBatches: Batch[];
+    isEdit: boolean;
+  }) => (
     <Modal
       animationType="fade"
       transparent={true}
       visible={isVisible}
-      onRequestClose={() => {
-        setShowDeleteConfirmation(false);
-        onClose();
-      }}
+      onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle} bold>{program.name}</Text>
+            <Text style={styles.modalTitle} bold>
+              {isEdit ? "Edit Program" : "Create New Program"}
+            </Text>
             <TouchableOpacity onPress={onClose}>
               <MaterialCommunityIcons
                 name="close"
@@ -323,70 +191,292 @@ const ProgramDetailsModal = memo(({
           </View>
 
           <ScrollView style={styles.modalBody}>
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Description</Text>
-              <Text style={styles.detailText}>{program.description}</Text>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Program Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter program name"
+                placeholderTextColor={COLORS.gray}
+                value={formData.name}
+                onChangeText={(text) =>
+                  onUpdateForm({ ...formData, name: text })
+                }
+              />
             </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Duration</Text>
-              <View style={styles.detailRow}>
-                <MaterialCommunityIcons name="clock-outline" size={20} color={COLORS.primary} />
-                <Text style={styles.detailText}>{program.duration} Weeks</Text>
-              </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Description</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Enter program description"
+                placeholderTextColor={COLORS.gray}
+                multiline
+                numberOfLines={4}
+                value={formData.description}
+                onChangeText={(text) =>
+                  onUpdateForm({ ...formData, description: text })
+                }
+              />
             </View>
 
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>Batches ({program.batches.length})</Text>
-              {program.batches.length > 0 ? (
-                program.batches.map((batch) => (
-                  <View key={batch.id} style={styles.batchDetailCard}>
-                    <Text style={styles.batchDetailName} bold>{batch.name}</Text>
-                    <Text style={styles.batchDetailDates}>
-                      {batch.startDate} - {batch.endDate}
-                    </Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.emptyText}>No batches assigned</Text>
-              )}
-            </View>  
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Duration (weeks)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter duration"
+                placeholderTextColor={COLORS.gray}
+                keyboardType="numeric"
+                value={formData.duration}
+                onChangeText={(text) =>
+                  onUpdateForm({ ...formData, duration: text })
+                }
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Batches</Text>
+              <BatchSelector
+                batches={availableBatches}
+                selectedBatches={formData.batches}
+                onSelect={(batches) => onUpdateForm({ ...formData, batches })}
+                onNavigateToBatches={onNavigateToBatches}
+              />
+            </View>
           </ScrollView>
 
           <View style={styles.modalFooter}>
             <TouchableOpacity
-              style={[styles.button, styles.editButton]}
-              onPress={() => {
-                onEdit(program!);
-                onClose();
-              }}
+              style={[styles.button, styles.cancelButton]}
+              onPress={onClose}
             >
-              <MaterialCommunityIcons name="pencil" size={20} color={COLORS.white} />
-              <Text style={[styles.buttonText, { color: COLORS.white, marginLeft: SPACING.xs }]} bold>Edit</Text>
+              <Text style={styles.buttonText} bold>
+                Cancel
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.deleteButton]}
-              onPress={() => setShowDeleteConfirmation(true)}
+              style={[styles.button, styles.saveButton]}
+              onPress={onSave}
             >
-              <MaterialCommunityIcons name="delete" size={20} color={COLORS.white} />
-              <Text style={[styles.buttonText, { color: COLORS.white, marginLeft: SPACING.xs }]} bold>Delete</Text>
+              <Text style={[styles.buttonText, { color: COLORS.white }]} bold>
+                {isEdit ? "Save" : "Create"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
       </View>
+    </Modal>
+  ),
+);
 
-      <DeleteConfirmationDialog
-        isVisible={showDeleteConfirmation}
-        program={program}
-        onConfirm={() => {
-          onDelete(program.id);
+const DeleteConfirmationDialog = memo(
+  ({
+    isVisible,
+    program,
+    onConfirm,
+    onCancel,
+  }: {
+    isVisible: boolean;
+    program: Program;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }) => {
+    return (
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isVisible}
+        onRequestClose={onCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, styles.confirmationDialog]}>
+            <View style={styles.confirmationIcon}>
+              <MaterialCommunityIcons
+                name="alert-circle-outline"
+                size={48}
+                color={COLORS.error}
+              />
+            </View>
+            <Text style={styles.confirmationTitle} bold>
+              Delete Program
+            </Text>
+            <Text style={styles.confirmationMessage}>
+              Are you sure you want to delete {program.name}? This action cannot
+              be undone.
+            </Text>
+            <View style={styles.confirmationButtons}>
+              <TouchableOpacity
+                style={[styles.confirmationButton, styles.cancelButton]}
+                onPress={onCancel}
+              >
+                <Text style={styles.buttonText} bold>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmationButton, styles.confirmButton]}
+                onPress={onConfirm}
+              >
+                <Text style={[styles.buttonText, { color: COLORS.white }]} bold>
+                  Delete
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  },
+);
+
+const ProgramDetailsModal = memo(
+  ({
+    isVisible,
+    onClose,
+    program,
+    onDelete,
+    onEdit,
+  }: {
+    isVisible: boolean;
+    onClose: () => void;
+    program: Program | null;
+    onDelete: (programId: string) => void;
+    onEdit: (program: Program) => void;
+  }) => {
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+
+    useEffect(() => {
+      if (!isVisible || !program) {
+        setShowDeleteConfirmation(false);
+      }
+    }, [isVisible, program]);
+
+    if (!program) return null;
+
+    return (
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isVisible}
+        onRequestClose={() => {
+          setShowDeleteConfirmation(false);
           onClose();
         }}
-        onCancel={() => setShowDeleteConfirmation(false)}
-      />
-    </Modal>
-  );
-});
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle} bold>
+                {program.name}
+              </Text>
+              <TouchableOpacity onPress={onClose}>
+                <MaterialCommunityIcons
+                  name="close"
+                  size={24}
+                  color={COLORS.text}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Description</Text>
+                <Text style={styles.detailText}>{program.description}</Text>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Duration</Text>
+                <View style={styles.detailRow}>
+                  <MaterialCommunityIcons
+                    name="clock-outline"
+                    size={20}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.detailText}>
+                    {program.duration} Weeks
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>
+                  Batches ({program.batches.length})
+                </Text>
+                {program.batches.length > 0 ? (
+                  program.batches.map((batch) => (
+                    <View key={batch.id} style={styles.batchDetailCard}>
+                      <Text style={styles.batchDetailName} bold>
+                        {batch.name}
+                      </Text>
+                      <Text style={styles.batchDetailDates}>
+                        {batch.startDate} - {batch.endDate}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyText}>No batches assigned</Text>
+                )}
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[styles.button, styles.editButton]}
+                onPress={() => {
+                  onEdit(program!);
+                  onClose();
+                }}
+              >
+                <MaterialCommunityIcons
+                  name="pencil"
+                  size={20}
+                  color={COLORS.white}
+                />
+                <Text
+                  style={[
+                    styles.buttonText,
+                    { color: COLORS.white, marginLeft: SPACING.xs },
+                  ]}
+                  bold
+                >
+                  Edit
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.deleteButton]}
+                onPress={() => setShowDeleteConfirmation(true)}
+              >
+                <MaterialCommunityIcons
+                  name="delete"
+                  size={20}
+                  color={COLORS.white}
+                />
+                <Text
+                  style={[
+                    styles.buttonText,
+                    { color: COLORS.white, marginLeft: SPACING.xs },
+                  ]}
+                  bold
+                >
+                  Delete
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        <DeleteConfirmationDialog
+          isVisible={showDeleteConfirmation}
+          program={program}
+          onConfirm={() => {
+            onDelete(program.id);
+            onClose();
+          }}
+          onCancel={() => setShowDeleteConfirmation(false)}
+        />
+      </Modal>
+    );
+  },
+);
 
 const EmptyState = memo(() => (
   <View style={styles.emptyStateContainer}>
@@ -396,7 +486,9 @@ const EmptyState = memo(() => (
       color={COLORS.secondary}
       style={styles.emptyStateIcon}
     />
-    <Text style={styles.emptyStateTitle} bold>No Programs Yet</Text>
+    <Text style={styles.emptyStateTitle} bold>
+      No Programs Yet
+    </Text>
     <Text style={styles.emptyStateMessage}>
       Click the plus icon in the top right corner to add the first program
     </Text>
@@ -420,7 +512,7 @@ const ProgramSkeleton = () => {
             duration: 1000,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     };
 
@@ -436,18 +528,30 @@ const ProgramSkeleton = () => {
     <View style={styles.programCard}>
       <View style={styles.programHeader}>
         <View>
-          <Animated.View style={[styles.skeletonText, styles.skeletonTitle, { opacity }]} />
-          <Animated.View style={[styles.skeletonText, styles.skeletonDescription, { opacity }]} />
+          <Animated.View
+            style={[styles.skeletonText, styles.skeletonTitle, { opacity }]}
+          />
+          <Animated.View
+            style={[
+              styles.skeletonText,
+              styles.skeletonDescription,
+              { opacity },
+            ]}
+          />
         </View>
       </View>
       <View style={styles.programStats}>
         <View style={styles.stat}>
           <Animated.View style={[styles.skeletonIcon, { opacity }]} />
-          <Animated.View style={[styles.skeletonText, styles.skeletonStat, { opacity }]} />
+          <Animated.View
+            style={[styles.skeletonText, styles.skeletonStat, { opacity }]}
+          />
         </View>
         <View style={styles.stat}>
           <Animated.View style={[styles.skeletonIcon, { opacity }]} />
-          <Animated.View style={[styles.skeletonText, styles.skeletonStat, { opacity }]} />
+          <Animated.View
+            style={[styles.skeletonText, styles.skeletonStat, { opacity }]}
+          />
         </View>
       </View>
     </View>
@@ -457,7 +561,7 @@ const ProgramSkeleton = () => {
 export default function ProgramsScreen() {
   const { user } = useAuthStore();
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -465,10 +569,10 @@ export default function ProgramsScreen() {
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
   const [programToDelete, setProgramToDelete] = useState<Program | null>(null);
   const [formData, setFormData] = useState({
-    id: '',
-    name: '',
-    description: '',
-    duration: '',
+    id: "",
+    name: "",
+    description: "",
+    duration: "",
     batches: [] as Batch[],
   });
   const [refreshing, setRefreshing] = useState(false);
@@ -485,7 +589,7 @@ export default function ProgramsScreen() {
     React.useCallback(() => {
       setIsModalVisible(false);
       resetForm();
-    }, [])
+    }, []),
   );
 
   useEffect(() => {
@@ -498,17 +602,18 @@ export default function ProgramsScreen() {
     try {
       await Promise.all([fetchPrograms(), fetchBatches()]);
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error("Error refreshing data:", error);
     }
     setRefreshing(false);
   }, []);
 
   const fetchBatches = async () => {
     try {
-      const batchesSnapshot = await db.collection('batches')
-        .where('isDeleted', '==', false)
+      const batchesSnapshot = await db
+        .collection("batches")
+        .where("isDeleted", "==", false)
         .get();
-      const fetchedBatches = batchesSnapshot.docs.map(doc => ({
+      const fetchedBatches = batchesSnapshot.docs.map((doc) => ({
         id: doc.id,
         name: doc.data().name,
         startDate: doc.data().startDate,
@@ -516,8 +621,8 @@ export default function ProgramsScreen() {
       })) as Batch[];
       setBatches(fetchedBatches);
     } catch (error) {
-      console.error('Error fetching batches:', error);
-      Alert.alert('Error', 'Failed to fetch batches');
+      console.error("Error fetching batches:", error);
+      Alert.alert("Error", "Failed to fetch batches");
     }
   };
 
@@ -528,29 +633,32 @@ export default function ProgramsScreen() {
   const fetchPrograms = async () => {
     try {
       setIsLoading(true);
-      const programsSnapshot = await db.collection('programs')
-        .where('isDeleted', '==', false)
+      const programsSnapshot = await db
+        .collection("programs")
+        .where("isDeleted", "==", false)
         .get();
 
       // Get all batches to calculate student counts
-      const batchesSnapshot = await db.collection('batches')
-        .where('isDeleted', '==', false)
+      const batchesSnapshot = await db
+        .collection("batches")
+        .where("isDeleted", "==", false)
         .get();
-      
+
       const batchStudentCounts = new Map();
-      
+
       // First, get student counts for each batch
       for (const batchDoc of batchesSnapshot.docs) {
         const batchData = batchDoc.data();
-        const studentsSnapshot = await db.collection('batches')
+        const studentsSnapshot = await db
+          .collection("batches")
           .doc(batchDoc.id)
-          .collection('students')
-          .where('isDeleted', '==', false)
+          .collection("students")
+          .where("isDeleted", "==", false)
           .get();
         batchStudentCounts.set(batchDoc.id, studentsSnapshot.size);
       }
 
-      const fetchedPrograms = programsSnapshot.docs.map(doc => {
+      const fetchedPrograms = programsSnapshot.docs.map((doc) => {
         const programData = doc.data();
         // Calculate total student count across all batches for this program
         let totalStudents = 0;
@@ -564,14 +672,14 @@ export default function ProgramsScreen() {
           id: doc.id,
           ...programData,
           batches: programData.batches || [],
-          studentCount: totalStudents
+          studentCount: totalStudents,
         };
       }) as Program[];
 
       setPrograms(fetchedPrograms);
     } catch (error) {
-      console.error('Error fetching programs:', error);
-      Alert.alert('Error', 'Failed to fetch programs');
+      console.error("Error fetching programs:", error);
+      Alert.alert("Error", "Failed to fetch programs");
     } finally {
       setIsLoading(false);
     }
@@ -591,8 +699,12 @@ export default function ProgramsScreen() {
   }, []);
 
   const validateForm = () => {
-    if (!formData.name.trim() || !formData.description.trim() || !formData.duration) {
-      Alert.alert('Error', 'Please fill in all required fields');
+    if (
+      !formData.name.trim() ||
+      !formData.description.trim() ||
+      !formData.duration
+    ) {
+      Alert.alert("Error", "Please fill in all required fields");
       return false;
     }
     return true;
@@ -610,70 +722,82 @@ export default function ProgramsScreen() {
         duration: parseInt(formData.duration),
         batches: formData.batches,
         batchCount: formData.batches.length,
-        createdBy: user?.id || '',
+        createdBy: user?.id || "",
         isDeleted: false,
         createdAt: new Date().toISOString(),
       };
 
       if (isEdit && formData.id) {
-        await db.collection('programs').doc(formData.id).update(programData);
-        
+        await db.collection("programs").doc(formData.id).update(programData);
+
         // Update batch-program relationships
-        const oldProgram = programs.find(p => p.id === formData.id);
+        const oldProgram = programs.find((p) => p.id === formData.id);
         if (oldProgram) {
           // Remove program from batches that are no longer associated
           const removedBatches = oldProgram.batches.filter(
-            oldBatch => !formData.batches.find(newBatch => newBatch.id === oldBatch.id)
+            (oldBatch) =>
+              !formData.batches.find((newBatch) => newBatch.id === oldBatch.id),
           );
-          
+
           for (const batch of removedBatches) {
-            const batchRef = db.collection('batches').doc(batch.id);
+            const batchRef = db.collection("batches").doc(batch.id);
             const batchDoc = await batchRef.get();
             const batchData = batchDoc.exists ? batchDoc.data() : null;
             if (batchData) {
-              const updatedPrograms = batchData.programs.filter((p: Program) => p.id !== formData.id);
+              const updatedPrograms = batchData.programs.filter(
+                (p: Program) => p.id !== formData.id,
+              );
               await batchRef.update({
                 programs: updatedPrograms,
-                programCount: updatedPrograms.length
+                programCount: updatedPrograms.length,
               });
             }
           }
         }
-        
+
         // Add program to new batches
         for (const batch of formData.batches) {
-          const batchRef = db.collection('batches').doc(batch.id);
+          const batchRef = db.collection("batches").doc(batch.id);
           const batchDoc = await batchRef.get();
           const batchData = batchDoc.exists ? batchDoc.data() : null;
-          if (batchData && !batchData.programs.find((p: Program) => p.id === formData.id)) {
-            const updatedPrograms = [...batchData.programs, {
-              id: formData.id,
-              name: formData.name,
-              description: formData.description
-            }];
+          if (
+            batchData &&
+            !batchData.programs.find((p: Program) => p.id === formData.id)
+          ) {
+            const updatedPrograms = [
+              ...batchData.programs,
+              {
+                id: formData.id,
+                name: formData.name,
+                description: formData.description,
+              },
+            ];
             await batchRef.update({
               programs: updatedPrograms,
-              programCount: updatedPrograms.length
+              programCount: updatedPrograms.length,
             });
           }
         }
       } else {
-        const docRef = await db.collection('programs').add(programData);
-        
+        const docRef = await db.collection("programs").add(programData);
+
         // Add program to selected batches
         for (const batch of formData.batches) {
-          const batchRef = db.collection('batches').doc(batch.id);
+          const batchRef = db.collection("batches").doc(batch.id);
           const batchDoc = await batchRef.get();
           const batchData = batchDoc.exists ? batchDoc.data() : null;
           if (batchData) {
-            const updatedPrograms = [...batchData.programs, {
-              id: docRef.id,
-              name: formData.name,
-              description: formData.description
-            }];
+            const updatedPrograms = [
+              ...batchData.programs,
+              {
+                id: docRef.id,
+                name: formData.name,
+                description: formData.description,
+              },
+            ];
             await batchRef.update({
               programs: updatedPrograms,
-              programCount: updatedPrograms.length
+              programCount: updatedPrograms.length,
             });
           }
         }
@@ -683,49 +807,53 @@ export default function ProgramsScreen() {
       setIsModalVisible(false);
       fetchPrograms();
     } catch (error) {
-      console.error('Error saving program:', error);
-      Alert.alert('Error', 'Failed to save program');
+      console.error("Error saving program:", error);
+      Alert.alert("Error", "Failed to save program");
     }
   };
 
-  const handleDelete = useCallback((programId: string) => {
-    const program = programs.find(p => p.id === programId);
-    if (program) {
-      setProgramToDelete(program);
-    }
-  }, [programs]);
+  const handleDelete = useCallback(
+    (programId: string) => {
+      const program = programs.find((p) => p.id === programId);
+      if (program) {
+        setProgramToDelete(program);
+      }
+    },
+    [programs],
+  );
 
   const handleDeleteConfirm = async () => {
     if (programToDelete) {
       try {
-        await db.collection('programs').doc(programToDelete.id).update({
+        await db.collection("programs").doc(programToDelete.id).update({
           isDeleted: true,
           deletedAt: new Date().toISOString(),
         });
-        setPrograms(programs.filter(p => p.id !== programToDelete.id));
+        setPrograms(programs.filter((p) => p.id !== programToDelete.id));
         setProgramToDelete(null);
         setSelectedProgram(null);
       } catch (error) {
-        console.error('Error deleting program:', error);
-        Alert.alert('Error', 'Failed to delete program');
+        console.error("Error deleting program:", error);
+        Alert.alert("Error", "Failed to delete program");
       }
     }
   };
 
   const resetForm = () => {
     setFormData({
-      id: '',
-      name: '',
-      description: '',
-      duration: '',
+      id: "",
+      name: "",
+      description: "",
+      duration: "",
       batches: [],
     });
     setIsEdit(false);
   };
 
-  const filteredPrograms = programs.filter((program) =>
-    program.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    program.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredPrograms = programs.filter(
+    (program) =>
+      program.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      program.description.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // Add useFocusEffect for automatic refetch
@@ -738,19 +866,25 @@ export default function ProgramsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={[
-          styles.searchContainer,
-          (isLoading || programs.length === 0) && styles.searchContainerDisabled
-        ]}>
+        <View
+          style={[
+            styles.searchContainer,
+            (isLoading || programs.length === 0) &&
+              styles.searchContainerDisabled,
+          ]}
+        >
           <MaterialCommunityIcons
             name="magnify"
             size={24}
-            color={(isLoading || programs.length === 0) ? COLORS.gray : COLORS.primary}
+            color={
+              isLoading || programs.length === 0 ? COLORS.gray : COLORS.primary
+            }
           />
           <TextInput
             style={[
               styles.searchInput,
-              (isLoading || programs.length === 0) && styles.searchInputDisabled
+              (isLoading || programs.length === 0) &&
+                styles.searchInputDisabled,
             ]}
             placeholder="Search programs..."
             placeholderTextColor={COLORS.gray}
@@ -759,7 +893,7 @@ export default function ProgramsScreen() {
             editable={!isLoading && programs.length > 0}
           />
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => setIsModalVisible(true)}
         >
@@ -811,28 +945,52 @@ export default function ProgramsScreen() {
           }
         >
           {filteredPrograms.map((program) => (
-            <TouchableOpacity 
-              key={program.id} 
+            <TouchableOpacity
+              key={program.id}
               style={styles.programCard}
               onPress={() => handleProgramPress(program)}
             >
               <View style={styles.programHeader}>
-                <Text style={styles.programName} bold>{program.name}</Text>
-                <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.primary} />
+                <Text style={styles.programName} bold>
+                  {program.name}
+                </Text>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={24}
+                  color={COLORS.primary}
+                />
               </View>
-              <Text style={styles.programDescription}>{program.description}</Text>
+              <Text style={styles.programDescription}>
+                {program.description}
+              </Text>
               <View style={styles.programStats}>
                 <View style={styles.stat}>
-                  <MaterialCommunityIcons name="clock-outline" size={20} color={COLORS.primary} />
+                  <MaterialCommunityIcons
+                    name="clock-outline"
+                    size={20}
+                    color={COLORS.primary}
+                  />
                   <Text style={styles.statText}>{program.duration} Weeks</Text>
                 </View>
                 <View style={styles.stat}>
-                  <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
-                  <Text style={styles.statText}>{program.batches.length} Batches</Text>
+                  <MaterialCommunityIcons
+                    name="account-group"
+                    size={20}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.statText}>
+                    {program.batches.length} Batches
+                  </Text>
                 </View>
                 <View style={styles.stat}>
-                  <MaterialCommunityIcons name="account" size={20} color={COLORS.primary} />
-                  <Text style={styles.statText}>{program.studentCount} Students</Text>
+                  <MaterialCommunityIcons
+                    name="account"
+                    size={20}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.statText}>
+                    {program.studentCount} Students
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -848,7 +1006,7 @@ export default function ProgramsScreen() {
         }}
         formData={formData}
         onUpdateForm={setFormData}
-        onNavigateToBatches={() => router.push('/batches')}
+        onNavigateToBatches={() => router.push("/batches")}
         onSave={handleSave}
         availableBatches={batches}
         isEdit={isEdit}
@@ -880,9 +1038,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: SPACING.md,
     backgroundColor: COLORS.white,
     ...SHADOWS.medium,
@@ -893,8 +1051,8 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.lightGray,
     borderRadius: BORDER_RADIUS.sm,
     padding: SPACING.sm,
@@ -907,8 +1065,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BORDER_RADIUS.round,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     flexShrink: 0,
   },
   content: {
@@ -924,9 +1082,9 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
   },
   programHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   programName: {
     fontSize: FONT_SIZES.lg,
@@ -938,12 +1096,12 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   programStats: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: SPACING.md,
   },
   stat: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginRight: SPACING.lg,
   },
   statText: {
@@ -953,21 +1111,21 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
     backgroundColor: COLORS.white,
-    width: '90%',
-    maxHeight: '80%',
+    width: "90%",
+    maxHeight: "80%",
     borderRadius: BORDER_RADIUS.lg,
     ...SHADOWS.medium,
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.lightGray,
@@ -980,8 +1138,8 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     padding: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: COLORS.lightGray,
@@ -1005,7 +1163,7 @@ const styles = StyleSheet.create({
   },
   textArea: {
     minHeight: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   button: {
     paddingVertical: SPACING.sm,
@@ -1030,9 +1188,9 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   batchSelectorButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     backgroundColor: COLORS.lightGray,
     borderRadius: BORDER_RADIUS.sm,
     padding: SPACING.sm,
@@ -1053,8 +1211,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.small,
   },
   batchItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: SPACING.sm,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -1081,7 +1239,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.lightGray,
     borderRadius: BORDER_RADIUS.sm,
     padding: SPACING.md,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
     borderColor: COLORS.border,
   },
@@ -1091,8 +1249,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   batchSelectorEmptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.primary,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
@@ -1117,8 +1275,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.sm,
   },
   batchDetailCard: {
@@ -1141,12 +1299,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: FONT_SIZES.md,
     color: COLORS.gray,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   deleteButton: {
     backgroundColor: COLORS.error,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: SPACING.md,
     marginRight: SPACING.sm,
   },
@@ -1154,29 +1312,29 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   confirmationDialog: {
-    width: '80%',
+    width: "80%",
     maxWidth: 400,
     padding: SPACING.lg,
   },
   confirmationIcon: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: SPACING.md,
   },
   confirmationTitle: {
     fontSize: FONT_SIZES.lg,
     color: COLORS.text,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: SPACING.sm,
   },
   confirmationMessage: {
     fontSize: FONT_SIZES.md,
     color: COLORS.textLight,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: SPACING.lg,
   },
   confirmationButtons: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: SPACING.md,
   },
   confirmationButton: {
@@ -1184,15 +1342,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     borderRadius: BORDER_RADIUS.sm,
     minWidth: 100,
-    alignItems: 'center',
+    alignItems: "center",
   },
   confirmButton: {
     backgroundColor: COLORS.error,
   },
   emptyStateContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: SPACING.xl,
   },
   emptyStateIcon: {
@@ -1203,12 +1361,12 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.xl,
     color: COLORS.text,
     marginBottom: SPACING.sm,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyStateMessage: {
     fontSize: FONT_SIZES.md,
     color: COLORS.textLight,
-    textAlign: 'center',
+    textAlign: "center",
     maxWidth: 300,
   },
   searchContainerDisabled: {
@@ -1221,8 +1379,8 @@ const styles = StyleSheet.create({
   },
   editButton: {
     backgroundColor: COLORS.secondary,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: SPACING.md,
     marginRight: SPACING.sm,
   },
@@ -1250,4 +1408,4 @@ const styles = StyleSheet.create({
     height: 14,
     marginLeft: SPACING.xs,
   },
-}); 
+});

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   View,
   StyleSheet,
@@ -9,36 +9,42 @@ import {
   ScrollView,
   ActivityIndicator,
   Keyboard,
-} from 'react-native';
-import { router } from 'expo-router';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Text, TextInput } from '../../components';
-import { useAuthStore } from '../../store/authStore';
+} from "react-native";
+import { router } from "expo-router";
+import {
+  COLORS,
+  SPACING,
+  FONT_SIZES,
+  BORDER_RADIUS,
+  SHADOWS,
+} from "../../constants/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Text, TextInput } from "../../components";
+import { useAuthStore } from "../../store/authStore";
 
 export default function SignupScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [name, setName] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const signUp = useAuthStore((state) => state.signUp);
   const error = useAuthStore((state) => state.error);
 
   const handleSignup = async () => {
     if (!email || !password || !confirmPassword || !name) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert("Error", "Please fill in all fields");
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert("Error", "Passwords do not match");
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password should be at least 6 characters');
+      Alert.alert("Error", "Password should be at least 6 characters");
       return;
     }
 
@@ -47,9 +53,9 @@ export default function SignupScreen() {
 
     try {
       await signUp(email, password, name);
-      router.replace('/(tabs)');
+      router.replace("/(tabs)");
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to create account');
+      Alert.alert("Error", error.message || "Failed to create account");
     } finally {
       setIsLoading(false);
     }
@@ -62,20 +68,31 @@ export default function SignupScreen() {
         style={StyleSheet.absoluteFill}
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.content}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : -500}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : -500}
       >
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.logoContainer}>
-            <MaterialCommunityIcons name="school" size={80} color={COLORS.white} />
-            <Text style={styles.title} bold>Techtonic Tribe</Text>     
+            <MaterialCommunityIcons
+              name="school"
+              size={80}
+              color={COLORS.white}
+            />
+            <Text style={styles.title} bold>
+              Techtonic Tribe
+            </Text>
             <Text style={styles.subtitle}>Create admin account</Text>
           </View>
 
           <View style={styles.formContainer}>
             <View style={styles.inputContainer}>
-              <MaterialCommunityIcons name="account" size={24} color={COLORS.primary} style={styles.inputIcon} />
+              <MaterialCommunityIcons
+                name="account"
+                size={24}
+                color={COLORS.primary}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Full Name"
@@ -88,7 +105,12 @@ export default function SignupScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <MaterialCommunityIcons name="email" size={24} color={COLORS.primary} style={styles.inputIcon} />
+              <MaterialCommunityIcons
+                name="email"
+                size={24}
+                color={COLORS.primary}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Email"
@@ -102,7 +124,12 @@ export default function SignupScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <MaterialCommunityIcons name="lock" size={24} color={COLORS.primary} style={styles.inputIcon} />
+              <MaterialCommunityIcons
+                name="lock"
+                size={24}
+                color={COLORS.primary}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Password"
@@ -115,7 +142,12 @@ export default function SignupScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <MaterialCommunityIcons name="lock-check" size={24} color={COLORS.primary} style={styles.inputIcon} />
+              <MaterialCommunityIcons
+                name="lock-check"
+                size={24}
+                color={COLORS.primary}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Confirm Password"
@@ -129,11 +161,11 @@ export default function SignupScreen() {
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
                 styles.signupButton,
-                isLoading && styles.signupButtonDisabled
-              ]} 
+                isLoading && styles.signupButtonDisabled,
+              ]}
               onPress={handleSignup}
               disabled={isLoading}
             >
@@ -142,8 +174,8 @@ export default function SignupScreen() {
                   Sign Up
                 </Text>
                 {isLoading && (
-                  <ActivityIndicator 
-                    color={COLORS.white} 
+                  <ActivityIndicator
+                    color={COLORS.white}
                     style={styles.spinner}
                     size="small"
                   />
@@ -151,13 +183,16 @@ export default function SignupScreen() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.loginLink} 
+            <TouchableOpacity
+              style={styles.loginLink}
               onPress={() => router.back()}
               disabled={isLoading}
             >
               <Text style={styles.loginLinkText}>
-                Already have an account? <Text style={styles.loginLinkTextBold} bold>Login</Text>
+                Already have an account?{" "}
+                <Text style={styles.loginLinkTextBold} bold>
+                  Login
+                </Text>
               </Text>
             </TouchableOpacity>
           </View>
@@ -176,7 +211,7 @@ const styles = StyleSheet.create({
     padding: SPACING.xl,
   },
   logoContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginVertical: SPACING.xl,
   },
   title: {
@@ -196,8 +231,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.lightGray,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
@@ -215,22 +250,22 @@ const styles = StyleSheet.create({
   errorText: {
     color: COLORS.error,
     marginBottom: SPACING.md,
-    textAlign: 'center',
+    textAlign: "center",
   },
   signupButton: {
     backgroundColor: COLORS.primary,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: SPACING.md,
   },
   signupButtonDisabled: {
     opacity: 0.7,
   },
   buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   signupButtonText: {
     color: COLORS.white,
@@ -241,7 +276,7 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     marginTop: SPACING.lg,
-    alignItems: 'center',
+    alignItems: "center",
   },
   loginLinkText: {
     fontSize: FONT_SIZES.sm,
@@ -250,4 +285,4 @@ const styles = StyleSheet.create({
   loginLinkTextBold: {
     color: COLORS.primary,
   },
-}); 
+});

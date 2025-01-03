@@ -1,16 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Text } from '../components';
-import { COLORS, SPACING, BORDER_RADIUS, SHADOWS, FONT_SIZES } from '../constants/theme';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { db } from '../config/firebase';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  RefreshControl,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Text } from "../components";
+import {
+  COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  SHADOWS,
+  FONT_SIZES,
+} from "../constants/theme";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { db } from "../config/firebase";
 
 interface AttendanceRecord {
   studentId: string;
   studentName: string;
   isPresent: boolean;
-  markedBy: 'manual' | 'scan';
+  markedBy: "manual" | "scan";
   timestamp: string;
 }
 
@@ -29,14 +42,19 @@ interface AttendanceSubmission {
 export default function AttendanceDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const [submission, setSubmission] = useState<AttendanceSubmission | null>(null);
+  const [submission, setSubmission] = useState<AttendanceSubmission | null>(
+    null,
+  );
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchSubmissionDetails = async () => {
     try {
-      const submissionDoc = await db.collection('attendance').doc(id as string).get();
+      const submissionDoc = await db
+        .collection("attendance")
+        .doc(id as string)
+        .get();
       if (!submissionDoc.exists) {
-        Alert.alert('Error', 'Attendance record not found');
+        Alert.alert("Error", "Attendance record not found");
         router.back();
         return;
       }
@@ -46,9 +64,9 @@ export default function AttendanceDetailsScreen() {
 
       // Get batch and program details
       const [batchDoc, programDoc, userDoc] = await Promise.all([
-        db.collection('batches').doc(data.batchId).get(),
-        db.collection('programs').doc(data.programId).get(),
-        db.collection('users').doc(data.createdBy).get(),
+        db.collection("batches").doc(data.batchId).get(),
+        db.collection("programs").doc(data.programId).get(),
+        db.collection("users").doc(data.createdBy).get(),
       ]);
 
       const batchData = batchDoc.data();
@@ -58,32 +76,35 @@ export default function AttendanceDetailsScreen() {
       // Get student names for each record
       const studentRecords = await Promise.all(
         data.records.map(async (record: any) => {
-          const studentDoc = await db.collection('students').doc(record.studentId).get();
+          const studentDoc = await db
+            .collection("students")
+            .doc(record.studentId)
+            .get();
           const studentData = studentDoc.data();
           return {
             studentId: record.studentId,
-            studentName: studentData?.name || 'Unknown Student',
+            studentName: studentData?.name || "Unknown Student",
             isPresent: record.isPresent,
             markedBy: record.markedBy,
             timestamp: record.timestamp,
           } as AttendanceRecord;
-        })
+        }),
       );
 
       setSubmission({
         id: submissionDoc.id,
         date: data.date,
         batchId: data.batchId,
-        batchName: batchData?.name || 'Unknown Batch',
+        batchName: batchData?.name || "Unknown Batch",
         programId: data.programId,
-        programName: programData?.name || 'Unknown Program',
+        programName: programData?.name || "Unknown Program",
         submittedBy: data.createdBy,
-        submitterName: userData?.name || 'Unknown User',
+        submitterName: userData?.name || "Unknown User",
         records: studentRecords,
       });
     } catch (error) {
-      console.error('Error fetching attendance details:', error);
-      Alert.alert('Error', 'Failed to load attendance details');
+      console.error("Error fetching attendance details:", error);
+      Alert.alert("Error", "Failed to load attendance details");
     }
   };
 
@@ -96,8 +117,8 @@ export default function AttendanceDetailsScreen() {
     try {
       await fetchSubmissionDetails();
     } catch (error) {
-      console.error('Error refreshing data:', error);
-      Alert.alert('Error', 'Failed to refresh data');
+      console.error("Error refreshing data:", error);
+      Alert.alert("Error", "Failed to refresh data");
     } finally {
       setRefreshing(false);
     }
@@ -107,7 +128,9 @@ export default function AttendanceDetailsScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title} bold>Attendance Details</Text>
+          <Text style={styles.title} bold>
+            Attendance Details
+          </Text>
         </View>
         <View style={[styles.content, styles.centerContent]}>
           <Text>Loading...</Text>
@@ -116,16 +139,18 @@ export default function AttendanceDetailsScreen() {
     );
   }
 
-  const presentCount = submission.records.filter(r => r.isPresent).length;
+  const presentCount = submission.records.filter((r) => r.isPresent).length;
   const totalCount = submission.records.length;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title} bold>Attendance Details</Text>
+        <Text style={styles.title} bold>
+          Attendance Details
+        </Text>
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -140,11 +165,11 @@ export default function AttendanceDetailsScreen() {
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
             <Text style={styles.date} bold>
-              {new Date(submission.date).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
+              {new Date(submission.date).toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
               })}
             </Text>
             <View style={styles.attendanceStats}>
@@ -167,59 +192,83 @@ export default function AttendanceDetailsScreen() {
 
           <View style={styles.summaryContent}>
             <View style={styles.summaryRow}>
-              <MaterialCommunityIcons name="book-education" size={20} color={COLORS.primary} />
+              <MaterialCommunityIcons
+                name="book-education"
+                size={20}
+                color={COLORS.primary}
+              />
               <Text style={styles.summaryText}>{submission.programName}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <MaterialCommunityIcons name="account-group" size={20} color={COLORS.primary} />
+              <MaterialCommunityIcons
+                name="account-group"
+                size={20}
+                color={COLORS.primary}
+              />
               <Text style={styles.summaryText}>{submission.batchName}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <MaterialCommunityIcons name="account" size={20} color={COLORS.primary} />
-              <Text style={styles.summaryText}>Submitted by {submission.submitterName}</Text>
+              <MaterialCommunityIcons
+                name="account"
+                size={20}
+                color={COLORS.primary}
+              />
+              <Text style={styles.summaryText}>
+                Submitted by {submission.submitterName}
+              </Text>
             </View>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle} bold>Student Records</Text>
+          <Text style={styles.sectionTitle} bold>
+            Student Records
+          </Text>
           {submission.records.map((record, index) => (
-            <View 
-              key={record.studentId} 
+            <View
+              key={record.studentId}
               style={[
                 styles.recordCard,
-                index === submission.records.length - 1 && { marginBottom: 0 }
+                index === submission.records.length - 1 && { marginBottom: 0 },
               ]}
             >
               <View style={styles.recordInfo}>
-                <Text style={styles.studentName} bold>{record.studentName}</Text>
+                <Text style={styles.studentName} bold>
+                  {record.studentName}
+                </Text>
                 <Text style={styles.studentId}>{record.studentId}</Text>
                 <View style={styles.recordMeta}>
-                  <MaterialCommunityIcons 
-                    name={record.markedBy === 'scan' ? 'barcode-scan' : 'gesture-tap'}
+                  <MaterialCommunityIcons
+                    name={
+                      record.markedBy === "scan"
+                        ? "barcode-scan"
+                        : "gesture-tap"
+                    }
                     size={16}
                     color={COLORS.textLight}
                   />
                   <Text style={styles.metaText}>
-                    {record.markedBy === 'scan' ? 'Scanned' : 'Manual'} at{' '}
-                    {new Date(record.timestamp).toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
+                    {record.markedBy === "scan" ? "Scanned" : "Manual"} at{" "}
+                    {new Date(record.timestamp).toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })}
                   </Text>
                 </View>
               </View>
-              <View style={[
-                styles.statusBadge,
-                record.isPresent ? styles.presentBadge : styles.absentBadge
-              ]}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  record.isPresent ? styles.presentBadge : styles.absentBadge,
+                ]}
+              >
                 <MaterialCommunityIcons
-                  name={record.isPresent ? 'check' : 'close'}
+                  name={record.isPresent ? "check" : "close"}
                   size={16}
                   color={COLORS.white}
                 />
                 <Text style={styles.statusText} bold>
-                  {record.isPresent ? 'Present' : 'Absent'}
+                  {record.isPresent ? "Present" : "Absent"}
                 </Text>
               </View>
             </View>
@@ -236,8 +285,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: SPACING.md,
     backgroundColor: COLORS.white,
     ...SHADOWS.small,
@@ -251,8 +300,8 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   summaryCard: {
     backgroundColor: COLORS.white,
@@ -270,11 +319,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   attendanceStats: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: SPACING.xl,
   },
   statItem: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   statValue: {
     fontSize: FONT_SIZES.xl,
@@ -293,8 +342,8 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.sm,
   },
   summaryText: {
@@ -313,9 +362,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   recordCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
@@ -333,8 +382,8 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
   },
   recordMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.xs,
     marginTop: SPACING.xs,
   },
@@ -343,8 +392,8 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
   },
   statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.xs,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
@@ -360,4 +409,4 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.sm,
     color: COLORS.white,
   },
-}); 
+});

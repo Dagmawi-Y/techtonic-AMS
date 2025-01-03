@@ -1,10 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Text } from '../components';
-import { COLORS, SPACING, BORDER_RADIUS, SHADOWS, FONT_SIZES } from '../constants/theme';
-import { useRouter } from 'expo-router';
-import { db } from '../config/firebase';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Text } from "../components";
+import {
+  COLORS,
+  SPACING,
+  BORDER_RADIUS,
+  SHADOWS,
+  FONT_SIZES,
+} from "../constants/theme";
+import { useRouter } from "expo-router";
+import { db } from "../config/firebase";
 
 interface AttendanceSubmission {
   id: string;
@@ -27,48 +40,60 @@ export default function AttendanceHistoryScreen() {
   const fetchSubmissions = async () => {
     try {
       // Get attendance records ordered by date
-      const attendanceSnapshot = await db.collection('attendance')
-        .orderBy('createdAt', 'desc')
+      const attendanceSnapshot = await db
+        .collection("attendance")
+        .orderBy("createdAt", "desc")
         .get();
 
       const fetchedSubmissions = await Promise.all(
         attendanceSnapshot.docs.map(async (doc) => {
           const data = doc.data();
-          
+
           // Get batch and program names
-          const batchDoc = await db.collection('batches').doc(data.batchId).get();
-          const programDoc = await db.collection('programs').doc(data.programId).get();
-          
+          const batchDoc = await db
+            .collection("batches")
+            .doc(data.batchId)
+            .get();
+          const programDoc = await db
+            .collection("programs")
+            .doc(data.programId)
+            .get();
+
           const batchData = batchDoc.data();
           const programData = programDoc.data();
 
           // Calculate present count
-          const presentCount = data.records.filter((r: any) => r.isPresent).length;
+          const presentCount = data.records.filter(
+            (r: any) => r.isPresent,
+          ).length;
           const totalCount = data.records.length;
 
           // Get submitter's name
-          const userDoc = await db.collection('users').doc(data.createdBy).get();
+          const userDoc = await db
+            .collection("users")
+            .doc(data.createdBy)
+            .get();
           const userData = userDoc.data();
 
           return {
             id: doc.id,
             date: data.date,
             batchId: data.batchId,
-            batchName: batchData?.name || 'Unknown Batch',
+            batchName: batchData?.name || "Unknown Batch",
             programId: data.programId,
-            programName: programData?.name || 'Unknown Program',
+            programName: programData?.name || "Unknown Program",
             presentCount,
             totalCount,
-            submittedBy: userData?.name || 'Unknown User',
+            submittedBy: userData?.name || "Unknown User",
             createdAt: data.createdAt,
           } as AttendanceSubmission;
-        })
+        }),
       );
 
       setSubmissions(fetchedSubmissions);
     } catch (error) {
-      console.error('Error fetching attendance history:', error);
-      Alert.alert('Error', 'Failed to load attendance history');
+      console.error("Error fetching attendance history:", error);
+      Alert.alert("Error", "Failed to load attendance history");
     }
   };
 
@@ -81,8 +106,8 @@ export default function AttendanceHistoryScreen() {
     try {
       await fetchSubmissions();
     } catch (error) {
-      console.error('Error refreshing data:', error);
-      Alert.alert('Error', 'Failed to refresh data');
+      console.error("Error refreshing data:", error);
+      Alert.alert("Error", "Failed to refresh data");
     } finally {
       setRefreshing(false);
     }
@@ -91,10 +116,12 @@ export default function AttendanceHistoryScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title} bold>Attendance History</Text>
+        <Text style={styles.title} bold>
+          Attendance History
+        </Text>
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -110,29 +137,33 @@ export default function AttendanceHistoryScreen() {
           <TouchableOpacity
             key={submission.id}
             style={styles.card}
-            onPress={() => router.push({
-              pathname: '/attendance-details',
-              params: { id: submission.id }
-            })}
+            onPress={() =>
+              router.push({
+                pathname: "/attendance-details",
+                params: { id: submission.id },
+              })
+            }
           >
             <View style={styles.cardHeader}>
               <Text style={styles.date} bold>
-                {new Date(submission.date).toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
+                {new Date(submission.date).toLocaleDateString("en-US", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
                 })}
               </Text>
-              <MaterialCommunityIcons 
-                name="chevron-right" 
-                size={24} 
-                color={COLORS.primary} 
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={24}
+                color={COLORS.primary}
               />
             </View>
 
             <View style={styles.cardContent}>
               <View style={styles.programInfo}>
-                <Text style={styles.programName} bold>{submission.programName}</Text>
+                <Text style={styles.programName} bold>
+                  {submission.programName}
+                </Text>
                 <Text style={styles.batchName}>{submission.batchName}</Text>
               </View>
 
@@ -145,7 +176,10 @@ export default function AttendanceHistoryScreen() {
                 </View>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue} bold>
-                    {Math.round((submission.presentCount / submission.totalCount) * 100)}%
+                    {Math.round(
+                      (submission.presentCount / submission.totalCount) * 100,
+                    )}
+                    %
                   </Text>
                   <Text style={styles.statLabel}>Rate</Text>
                 </View>
@@ -153,7 +187,11 @@ export default function AttendanceHistoryScreen() {
             </View>
 
             <View style={styles.cardFooter}>
-              <MaterialCommunityIcons name="account" size={16} color={COLORS.textLight} />
+              <MaterialCommunityIcons
+                name="account"
+                size={16}
+                color={COLORS.textLight}
+              />
               <Text style={styles.submittedBy}>{submission.submittedBy}</Text>
             </View>
           </TouchableOpacity>
@@ -169,8 +207,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: SPACING.md,
     backgroundColor: COLORS.white,
     ...SHADOWS.small,
@@ -195,9 +233,9 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: SPACING.sm,
   },
   date: {
@@ -205,9 +243,9 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   cardContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: SPACING.md,
   },
   programInfo: {
@@ -223,11 +261,11 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
   },
   attendanceStats: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: SPACING.md,
   },
   statItem: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   statValue: {
     fontSize: FONT_SIZES.md,
@@ -238,12 +276,12 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
   },
   cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.xs,
   },
   submittedBy: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textLight,
   },
-}); 
+});

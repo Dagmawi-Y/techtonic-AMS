@@ -1,10 +1,10 @@
-import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
-import { mmkvStorage } from './storage';
-import { User } from './types';
-import { auth, db } from '../config/firebase';
-import { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { mmkvStorage } from "./storage";
+import { User } from "./types";
+import { auth, db } from "../config/firebase";
+import { FirebaseAuthTypes } from "@react-native-firebase/auth";
+import firestore from "@react-native-firebase/firestore";
 
 interface AuthState {
   user: User | null;
@@ -12,7 +12,7 @@ interface AuthState {
   isAuthenticated: boolean;
   error: string | null;
   hydrated: boolean;
-  
+
   // Actions
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
@@ -24,27 +24,38 @@ interface AuthState {
   setHydrated: (hydrated: boolean) => void;
 }
 
-const createUserProfile = async (firebaseUser: FirebaseAuthTypes.User, name: string): Promise<User> => {
+const createUserProfile = async (
+  firebaseUser: FirebaseAuthTypes.User,
+  name: string,
+): Promise<User> => {
   const userProfile: User = {
     id: firebaseUser.uid,
     email: firebaseUser.email!,
     name: name,
-    role: 'admin',
+    role: "admin",
     createdAt: Date.now(),
     lastLoginAt: Date.now(),
   };
 
-  await firestore().collection('users').doc(firebaseUser.uid).set({
-    ...userProfile,
-    createdAt: firestore.FieldValue.serverTimestamp(),
-    lastLoginAt: firestore.FieldValue.serverTimestamp(),
-  });
+  await firestore()
+    .collection("users")
+    .doc(firebaseUser.uid)
+    .set({
+      ...userProfile,
+      createdAt: firestore.FieldValue.serverTimestamp(),
+      lastLoginAt: firestore.FieldValue.serverTimestamp(),
+    });
 
   return userProfile;
 };
 
-const getUserProfile = async (firebaseUser: FirebaseAuthTypes.User): Promise<User | null> => {
-  const userDoc = await firestore().collection('users').doc(firebaseUser.uid).get();
+const getUserProfile = async (
+  firebaseUser: FirebaseAuthTypes.User,
+): Promise<User | null> => {
+  const userDoc = await firestore()
+    .collection("users")
+    .doc(firebaseUser.uid)
+    .get();
   if (userDoc.exists) {
     return userDoc.data() as User;
   }
@@ -62,21 +73,23 @@ export const useAuthStore = create<AuthState>()(
 
       setHydrated: (hydrated) => set({ hydrated }),
 
-      setUser: (user) => set({ 
-        user, 
-        isAuthenticated: !!user,
-        error: null 
-      }),
-      
+      setUser: (user) =>
+        set({
+          user,
+          isAuthenticated: !!user,
+          error: null,
+        }),
+
       setLoading: (isLoading) => set({ isLoading }),
-      
+
       setError: (error) => set({ error }),
-      
+
       signUp: async (email: string, password: string, name: string) => {
         try {
-          const { user: firebaseUser } = await auth().createUserWithEmailAndPassword(email, password);
+          const { user: firebaseUser } =
+            await auth().createUserWithEmailAndPassword(email, password);
           const userProfile = await createUserProfile(firebaseUser, name);
-          set({ 
+          set({
             user: userProfile,
             isAuthenticated: true,
             error: null,
@@ -86,22 +99,23 @@ export const useAuthStore = create<AuthState>()(
           throw error;
         }
       },
-      
+
       signIn: async (email: string, password: string) => {
         try {
-          const { user: firebaseUser } = await auth().signInWithEmailAndPassword(email, password);
+          const { user: firebaseUser } =
+            await auth().signInWithEmailAndPassword(email, password);
           const userProfile = await getUserProfile(firebaseUser);
-          
+
           if (!userProfile) {
-            throw new Error('User profile not found');
+            throw new Error("User profile not found");
           }
-          
+
           // Update last login
-          await firestore().collection('users').doc(firebaseUser.uid).update({
+          await firestore().collection("users").doc(firebaseUser.uid).update({
             lastLoginAt: firestore.FieldValue.serverTimestamp(),
           });
-          
-          set({ 
+
+          set({
             user: userProfile,
             isAuthenticated: true,
             error: null,
@@ -111,14 +125,14 @@ export const useAuthStore = create<AuthState>()(
           throw error;
         }
       },
-      
+
       signOut: async () => {
         try {
           await auth().signOut();
-          set({ 
-            user: null, 
+          set({
+            user: null,
             isAuthenticated: false,
-            error: null 
+            error: null,
           });
         } catch (error: any) {
           set({ error: error.message });
@@ -130,13 +144,13 @@ export const useAuthStore = create<AuthState>()(
         const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
           if (firebaseUser) {
             const userProfile = await getUserProfile(firebaseUser);
-            set({ 
+            set({
               user: userProfile,
               isAuthenticated: !!userProfile,
               isLoading: false,
             });
           } else {
-            set({ 
+            set({
               user: null,
               isAuthenticated: false,
               isLoading: false,
@@ -149,11 +163,11 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'auth-storage',
+      name: "auth-storage",
       storage: createJSONStorage(() => mmkvStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);
       },
-    }
-  )
-); 
+    },
+  ),
+);

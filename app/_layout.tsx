@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
-import { useColorScheme, StatusBar } from 'react-native';
-import { COLORS } from '../constants/theme';
-import { useFonts } from 'expo-font';
-import * as SplashScreen from 'expo-splash-screen';
-import { useAuthStore } from '../store/authStore';
+import { useEffect } from "react";
+import { Stack, useRouter, useSegments } from "expo-router";
+import { useColorScheme, StatusBar } from "react-native";
+import { COLORS } from "../constants/theme";
+import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
+import { useAuthStore } from "../store/authStore";
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -19,9 +19,9 @@ export default function RootLayout() {
   const hydrated = useAuthStore((state) => state.hydrated);
 
   const [fontsLoaded] = useFonts({
-    'Ubuntu-Regular': require('../assets/fonts/Ubuntu-Regular.ttf'),
-    'Ubuntu-Medium': require('../assets/fonts/Ubuntu-Medium.ttf'),
-    'Ubuntu-Bold': require('../assets/fonts/Ubuntu-Bold.ttf'),
+    "Ubuntu-Regular": require("../assets/fonts/Ubuntu-Regular.ttf"),
+    "Ubuntu-Medium": require("../assets/fonts/Ubuntu-Medium.ttf"),
+    "Ubuntu-Bold": require("../assets/fonts/Ubuntu-Bold.ttf"),
   });
 
   useEffect(() => {
@@ -36,15 +36,15 @@ export default function RootLayout() {
   }, [fontsLoaded]);
 
   useEffect(() => {
-    const inAuthGroup = segments[0] === '(auth)';
-    
+    const inAuthGroup = segments[0] === "(auth)";
+
     if (!isLoading && fontsLoaded && hydrated) {
       if (!isAuthenticated && !inAuthGroup) {
         // Redirect to the sign-in page.
-        router.replace('/login');
+        router.replace("/login");
       } else if (isAuthenticated && inAuthGroup) {
         // Redirect away from the sign-in page.
-        router.replace('/(tabs)');
+        router.replace("/(tabs)");
       }
     }
   }, [isAuthenticated, segments, isLoading, fontsLoaded, hydrated]);
@@ -62,14 +62,14 @@ export default function RootLayout() {
       />
       <Stack
         screenOptions={({ route }) => ({
-          headerShown: !route.name.startsWith('(auth)'),
-          headerTitle: '',
+          headerShown: !route.name.startsWith("(auth)"),
+          headerTitle: "",
           headerStyle: {
             backgroundColor: COLORS.primary,
           },
           headerTintColor: COLORS.white,
           headerTitleStyle: {
-            fontFamily: 'Ubuntu-Bold',
+            fontFamily: "Ubuntu-Bold",
           },
           contentStyle: {
             backgroundColor: COLORS.background,

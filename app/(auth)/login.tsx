@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   View,
   StyleSheet,
@@ -8,24 +8,30 @@ import {
   Alert,
   ActivityIndicator,
   Keyboard,
-} from 'react-native';
-import { router } from 'expo-router';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Text, TextInput } from '../../components';
-import { useAuthStore } from '../../store/authStore';
+} from "react-native";
+import { router } from "expo-router";
+import {
+  COLORS,
+  SPACING,
+  FONT_SIZES,
+  BORDER_RADIUS,
+  SHADOWS,
+} from "../../constants/theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Text, TextInput } from "../../components";
+import { useAuthStore } from "../../store/authStore";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const signIn = useAuthStore((state) => state.signIn);
   const error = useAuthStore((state) => state.error);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert("Error", "Please fill in all fields");
       return;
     }
 
@@ -34,9 +40,9 @@ export default function LoginScreen() {
 
     try {
       await signIn(email, password);
-      router.replace('/(tabs)');
+      router.replace("/(tabs)");
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to sign in');
+      Alert.alert("Error", error.message || "Failed to sign in");
     } finally {
       setIsLoading(false);
     }
@@ -49,20 +55,31 @@ export default function LoginScreen() {
         style={StyleSheet.absoluteFill}
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={[styles.content]}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : -500}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : -500}
       >
         <View style={styles.logoContainer}>
-          <MaterialCommunityIcons name="school" size={80} color={COLORS.white} />
-          <Text style={styles.title} bold>Techtonic Tribe</Text>     
+          <MaterialCommunityIcons
+            name="school"
+            size={80}
+            color={COLORS.white}
+          />
+          <Text style={styles.title} bold>
+            Techtonic Tribe
+          </Text>
           <Text style={styles.subtitle}>Member Management Portal</Text>
         </View>
 
         <View style={styles.formContainer}>
           <Text style={styles.welcome}>Welcome Back!</Text>
           <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="email" size={24} color={COLORS.primary} style={styles.inputIcon} />
+            <MaterialCommunityIcons
+              name="email"
+              size={24}
+              color={COLORS.primary}
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="Email"
@@ -76,7 +93,12 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputContainer}>
-            <MaterialCommunityIcons name="lock" size={24} color={COLORS.primary} style={styles.inputIcon} />
+            <MaterialCommunityIcons
+              name="lock"
+              size={24}
+              color={COLORS.primary}
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
               placeholder="Password"
@@ -90,11 +112,11 @@ export default function LoginScreen() {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
               styles.loginButton,
-              isLoading && styles.loginButtonDisabled
-            ]} 
+              isLoading && styles.loginButtonDisabled,
+            ]}
             onPress={handleLogin}
             disabled={isLoading}
           >
@@ -103,8 +125,8 @@ export default function LoginScreen() {
                 Login
               </Text>
               {isLoading && (
-                <ActivityIndicator 
-                  color={COLORS.white} 
+                <ActivityIndicator
+                  color={COLORS.white}
                   style={styles.spinner}
                   size="small"
                 />
@@ -112,13 +134,16 @@ export default function LoginScreen() {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.signupLink} 
-            onPress={() => router.push('/signup')}
+          <TouchableOpacity
+            style={styles.signupLink}
+            onPress={() => router.push("/signup")}
             disabled={isLoading}
           >
             <Text style={styles.signupLinkText}>
-              Don't have an account? <Text style={styles.signupLinkTextBold} bold>Sign Up</Text>
+              Don't have an account?{" "}
+              <Text style={styles.signupLinkTextBold} bold>
+                Sign Up
+              </Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -133,11 +158,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: SPACING.xl,
   },
   logoContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: SPACING.xl,
   },
   title: {
@@ -162,8 +187,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.medium,
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.lightGray,
     borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
@@ -181,22 +206,22 @@ const styles = StyleSheet.create({
   errorText: {
     color: COLORS.error,
     marginBottom: SPACING.md,
-    textAlign: 'center',
+    textAlign: "center",
   },
   loginButton: {
     backgroundColor: COLORS.primary,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: SPACING.md,
   },
   loginButtonDisabled: {
     opacity: 0.7,
   },
   buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   loginButtonText: {
     color: COLORS.white,
@@ -207,7 +232,7 @@ const styles = StyleSheet.create({
   },
   signupLink: {
     marginTop: SPACING.lg,
-    alignItems: 'center',
+    alignItems: "center",
   },
   signupLinkText: {
     fontSize: FONT_SIZES.sm,
@@ -216,4 +241,4 @@ const styles = StyleSheet.create({
   signupLinkTextBold: {
     color: COLORS.primary,
   },
-}); 
+});

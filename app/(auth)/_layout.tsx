@@ -1,5 +1,5 @@
-import { Stack } from 'expo-router';
-import { COLORS } from '../../constants/theme';
+import { Stack } from "expo-router";
+import { COLORS } from "../../constants/theme";
 
 export default function AuthLayout() {
   return (
@@ -13,4 +13,4 @@ export default function AuthLayout() {
       <Stack.Screen name="signup" />
     </Stack>
   );
-} 
+}
