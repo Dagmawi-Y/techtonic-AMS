@@ -19,6 +19,7 @@ import {
 } from "../constants/theme";
 import { useRouter } from "expo-router";
 import { db } from "../config/firebase";
+import { useBatchStore } from "../store/batchStore";
 
 interface AttendanceSubmission {
   id: string;
@@ -33,89 +34,145 @@ interface AttendanceSubmission {
   createdAt: string;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export default function AttendanceHistoryScreen() {
   const router = useRouter();
   const [submissions, setSubmissions] = useState<AttendanceSubmission[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastDoc, setLastDoc] = useState<any>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const { batches } = useBatchStore();
 
-  const fetchSubmissions = async () => {
+  // Cache for program and user data to avoid duplicate queries
+  const [programCache, setProgramCache] = useState<Record<string, any>>({});
+  const [userCache, setUserCache] = useState<Record<string, any>>({});
+
+  const fetchSubmissions = async (isRefresh = false) => {
     try {
-      // get attendance records ordered by date
-      const attendanceSnapshot = await db
+      if (isRefresh) {
+        setLastDoc(null);
+        setHasMore(true);
+      }
+
+      let query = db
         .collection("attendance")
         .orderBy("createdAt", "desc")
-        .get();
+        .limit(ITEMS_PER_PAGE);
 
-      const fetchedSubmissions = await Promise.all(
-        attendanceSnapshot.docs.map(async (doc) => {
-          const data = doc.data();
+      if (!isRefresh && lastDoc) {
+        query = query.startAfter(lastDoc);
+      }
 
-          // Get batch and program names
-          const batchDoc = await db
-            .collection("batches")
-            .doc(data.batchId)
-            .get();
-          const programDoc = await db
-            .collection("programs")
-            .doc(data.programId)
-            .get();
+      const attendanceSnapshot = await query.get();
 
-          const batchData = batchDoc.data();
-          const programData = programDoc.data();
+      if (attendanceSnapshot.empty) {
+        setHasMore(false);
+        if (isRefresh) setSubmissions([]);
+        return;
+      }
 
-          // Calculate present count
-          const presentCount = data.records.filter(
-            (r: any) => r.isPresent
-          ).length;
-          const totalCount = data.records.length;
+      // Update lastDoc for pagination
+      setLastDoc(attendanceSnapshot.docs[attendanceSnapshot.docs.length - 1]);
 
-          // Get submitter's name
-          const userDoc = await db
-            .collection("users")
-            .doc(data.createdBy)
-            .get();
-          const userData = userDoc.data();
+      // Collect all unique IDs that need to be fetched
+      const programIds = new Set<string>();
+      const userIds = new Set<string>();
 
-          return {
-            id: doc.id,
-            date: data.date,
-            batchId: data.batchId,
-            batchName: batchData?.name || "Unknown Batch",
-            programId: data.programId,
-            programName: programData?.name || "Unknown Program",
-            presentCount,
-            totalCount,
-            submittedBy: userData?.name || "Unknown User",
-            createdAt: data.createdAt,
-          } as AttendanceSubmission;
-        })
+      attendanceSnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        if (!programCache[data.programId]) {
+          programIds.add(data.programId);
+        }
+        if (!userCache[data.createdBy]) {
+          userIds.add(data.createdBy);
+        }
+      });
+
+      // Fetch all missing data in parallel
+      const [programDocs, userDocs] = await Promise.all([
+        Promise.all(
+          Array.from(programIds).map((id) =>
+            db.collection("programs").doc(id).get()
+          )
+        ),
+        Promise.all(
+          Array.from(userIds).map((id) => db.collection("users").doc(id).get())
+        ),
+      ]);
+
+      // Update caches with new data
+      const newProgramCache = { ...programCache };
+      programDocs.forEach((doc) => {
+        if (doc.exists) {
+          newProgramCache[doc.id] = doc.data();
+        }
+      });
+      setProgramCache(newProgramCache);
+
+      const newUserCache = { ...userCache };
+      userDocs.forEach((doc) => {
+        if (doc.exists) {
+          newUserCache[doc.id] = doc.data();
+        }
+      });
+      setUserCache(newUserCache);
+
+      // Map submissions with complete cache data
+      const fetchedSubmissions = attendanceSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        const batch = batches[data.batchId];
+        const program = newProgramCache[data.programId];
+        const user = newUserCache[data.createdBy];
+
+        const presentCount = data.records.filter(
+          (r: any) => r.isPresent
+        ).length;
+        const totalCount = data.records.length;
+
+        return {
+          id: doc.id,
+          date: data.date,
+          batchId: data.batchId,
+          batchName: batch?.name || "Unknown Batch",
+          programId: data.programId,
+          programName: program?.name || "Unknown Program",
+          presentCount,
+          totalCount,
+          submittedBy: user?.name || "Unknown User",
+          createdAt: data.createdAt,
+        } as AttendanceSubmission;
+      });
+
+      setSubmissions((prev) =>
+        isRefresh ? fetchedSubmissions : [...prev, ...fetchedSubmissions]
       );
-
-      setSubmissions(fetchedSubmissions);
     } catch (error) {
       console.error("Error fetching attendance history:", error);
       Alert.alert("Error", "Failed to load attendance history");
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchSubmissions(true);
+    setRefreshing(false);
+  };
+
+  const loadMore = async () => {
+    if (!hasMore || isLoadingMore) return;
+    setIsLoadingMore(true);
+    await fetchSubmissions();
   };
 
   useEffect(() => {
     fetchSubmissions();
   }, []);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await fetchSubmissions();
-    } catch (error) {
-      console.error("Error refreshing data:", error);
-      Alert.alert("Error", "Failed to refresh data");
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -151,6 +208,16 @@ export default function AttendanceHistoryScreen() {
             tintColor={COLORS.primary}
           />
         }
+        onScroll={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          const isCloseToBottom =
+            layoutMeasurement.height + contentOffset.y >=
+            contentSize.height - 50;
+          if (isCloseToBottom && hasMore && !isLoadingMore) {
+            loadMore();
+          }
+        }}
+        scrollEventThrottle={400}
       >
         {submissions.map((submission) => (
           <TouchableOpacity
@@ -200,21 +267,32 @@ export default function AttendanceHistoryScreen() {
                     )}
                     %
                   </Text>
-                  <Text style={styles.statLabel}>Rate</Text>
+                  <Text style={styles.statLabel}>Attendance</Text>
                 </View>
               </View>
-            </View>
 
-            <View style={styles.cardFooter}>
-              <MaterialCommunityIcons
-                name="account"
-                size={16}
-                color={COLORS.textLight}
-              />
-              <Text style={styles.submittedBy}>{submission.submittedBy}</Text>
+              <Text style={styles.submittedBy}>
+                Submitted by {submission.submittedBy}
+              </Text>
             </View>
           </TouchableOpacity>
         ))}
+
+        {isLoadingMore && (
+          <View style={styles.loadingMore}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          </View>
+        )}
+
+        {!hasMore && submissions.length > 0 && (
+          <Text style={styles.noMoreData}>No more records to load</Text>
+        )}
+
+        {submissions.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text>No attendance records found</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -226,11 +304,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    ...SHADOWS.medium,
     flexDirection: "row",
     alignItems: "center",
     padding: SPACING.md,
     backgroundColor: COLORS.white,
-    ...SHADOWS.small,
   },
   backButton: {
     padding: SPACING.sm,
@@ -242,14 +320,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: SPACING.md,
+    padding: SPACING.sm,
   },
   card: {
+    ...SHADOWS.small,
     backgroundColor: COLORS.white,
-    borderRadius: BORDER_RADIUS.lg,
+    borderRadius: BORDER_RADIUS.md,
     marginBottom: SPACING.md,
     padding: SPACING.md,
-    ...SHADOWS.medium,
   },
   cardHeader: {
     flexDirection: "row",
@@ -262,18 +340,14 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   cardContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: SPACING.md,
+    gap: SPACING.sm,
   },
   programInfo: {
-    flex: 1,
+    gap: SPACING.xs,
   },
   programName: {
     fontSize: FONT_SIZES.md,
     color: COLORS.text,
-    marginBottom: SPACING.xs,
   },
   batchName: {
     fontSize: FONT_SIZES.sm,
@@ -282,6 +356,7 @@ const styles = StyleSheet.create({
   attendanceStats: {
     flexDirection: "row",
     gap: SPACING.md,
+    justifyContent: "space-between",
   },
   statItem: {
     alignItems: "center",
@@ -291,7 +366,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   statLabel: {
-    fontSize: FONT_SIZES.xs,
+    fontSize: FONT_SIZES.sm,
     color: COLORS.textLight,
   },
   cardFooter: {
@@ -305,6 +380,19 @@ const styles = StyleSheet.create({
   },
   centerContent: {
     justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingMore: {
+    padding: SPACING.md,
+    alignItems: "center",
+  },
+  noMoreData: {
+    textAlign: "center",
+    padding: SPACING.md,
+    color: COLORS.textLight,
+  },
+  emptyState: {
+    padding: SPACING.xl,
     alignItems: "center",
   },
 });
