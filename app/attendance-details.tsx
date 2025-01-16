@@ -19,6 +19,7 @@ import {
 } from "../constants/theme";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { db } from "../config/firebase";
+import { useBatchStore } from "../store/batchStore";
 
 interface AttendanceRecord {
   studentId: string;
@@ -47,6 +48,10 @@ export default function AttendanceDetailsScreen() {
     null
   );
   const [refreshing, setRefreshing] = useState(false);
+  const { batches } = useBatchStore();
+
+  // Cache for program, user, and student data
+  const [dataCache, setDataCache] = useState<Record<string, any>>({});
 
   const fetchSubmissionDetails = async () => {
     try {
@@ -63,44 +68,120 @@ export default function AttendanceDetailsScreen() {
       const data = submissionDoc.data();
       if (!data) return;
 
-      // Get batch and program details
-      const [batchDoc, programDoc, userDoc] = await Promise.all([
-        db.collection("batches").doc(data.batchId).get(),
-        db.collection("programs").doc(data.programId).get(),
-        db.collection("users").doc(data.createdBy).get(),
-      ]);
+      // Collect all unique IDs that need to be fetched
+      const idsToFetch = {
+        programs: new Set<string>([data.programId]),
+        users: new Set<string>([data.createdBy]),
+        students: new Set<string>(),
+      };
 
-      const batchData = batchDoc.data();
-      const programData = programDoc.data();
-      const userData = userDoc.data();
+      // Collect student IDs from records
+      data.records.forEach((record: any) => {
+        idsToFetch.students.add(record.studentId);
+      });
 
-      // Get student names for each record
-      const studentRecords = await Promise.all(
-        data.records.map(async (record: any) => {
-          const studentDoc = await db
-            .collection("students")
-            .doc(record.studentId)
-            .get();
-          const studentData = studentDoc.data();
-          return {
-            studentId: record.studentId,
-            studentName: studentData?.name || "Unknown Student",
-            isPresent: record.isPresent,
-            markedBy: record.markedBy,
-            timestamp: record.timestamp,
-          } as AttendanceRecord;
-        })
+      // Create a new cache with existing data
+      const newCache = { ...dataCache };
+
+      // Prepare parallel queries for missing data
+      const queries: Promise<any>[] = [];
+
+      // Programs
+      const missingPrograms = Array.from(idsToFetch.programs).filter(
+        (id) => !newCache[`program_${id}`]
       );
+      if (missingPrograms.length > 0) {
+        queries.push(
+          Promise.all(
+            missingPrograms.map((id) => db.collection("programs").doc(id).get())
+          )
+        );
+      }
+
+      // Users
+      const missingUsers = Array.from(idsToFetch.users).filter(
+        (id) => !newCache[`user_${id}`]
+      );
+      if (missingUsers.length > 0) {
+        queries.push(
+          Promise.all(
+            missingUsers.map((id) => db.collection("users").doc(id).get())
+          )
+        );
+      }
+
+      // Students (using batched get for efficiency)
+      const missingStudents = Array.from(idsToFetch.students).filter(
+        (id) => !newCache[`student_${id}`]
+      );
+      if (missingStudents.length > 0) {
+        // Split into batches of 10 (Firestore limit)
+        const studentBatches = [];
+        for (let i = 0; i < missingStudents.length; i += 10) {
+          const batch = missingStudents.slice(i, i + 10);
+          studentBatches.push(
+            db.collection("students").where("__name__", "in", batch).get()
+          );
+        }
+        queries.push(Promise.all(studentBatches));
+      }
+
+      // Execute all queries in parallel
+      const results = await Promise.all(queries);
+
+      // Update cache with new data
+      let resultIndex = 0;
+      if (missingPrograms.length > 0) {
+        results[resultIndex].forEach((doc: any) => {
+          if (doc.exists) {
+            newCache[`program_${doc.id}`] = doc.data();
+          }
+        });
+        resultIndex++;
+      }
+
+      if (missingUsers.length > 0) {
+        results[resultIndex].forEach((doc: any) => {
+          if (doc.exists) {
+            newCache[`user_${doc.id}`] = doc.data();
+          }
+        });
+        resultIndex++;
+      }
+
+      if (missingStudents.length > 0) {
+        results[resultIndex].forEach((batch: any) => {
+          batch.docs.forEach((doc: any) => {
+            if (doc.exists) {
+              newCache[`student_${doc.id}`] = doc.data();
+            }
+          });
+        });
+      }
+
+      setDataCache(newCache);
+
+      // Map the submission data with cached data
+      const studentRecords = data.records.map((record: any) => ({
+        studentId: record.studentId,
+        studentName:
+          newCache[`student_${record.studentId}`]?.name || "Unknown Student",
+        isPresent: record.isPresent,
+        markedBy: record.markedBy,
+        timestamp: record.timestamp,
+      }));
 
       setSubmission({
         id: submissionDoc.id,
         date: data.date,
         batchId: data.batchId,
-        batchName: batchData?.name || "Unknown Batch",
+        batchName: batches[data.batchId]?.name || "Unknown Batch",
         programId: data.programId,
-        programName: programData?.name || "Unknown Program",
+        programName:
+          newCache[`program_${data.programId}`]?.name || "Unknown Program",
         submittedBy: data.createdBy,
-        submitterName: userData?.name || "Unknown User",
+        submitterName:
+          newCache[`user_${data.createdBy}`]?.name || "Unknown User",
         records: studentRecords,
       });
     } catch (error) {
