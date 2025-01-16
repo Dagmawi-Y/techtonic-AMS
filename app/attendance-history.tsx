@@ -44,7 +44,7 @@ export default function AttendanceHistoryScreen() {
   const [lastDoc, setLastDoc] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const { batches } = useBatchStore();
+  const { batches, setBatches } = useBatchStore();
 
   // Cache for program and user data to avoid duplicate queries
   const [programCache, setProgramCache] = useState<Record<string, any>>({});
@@ -56,6 +56,21 @@ export default function AttendanceHistoryScreen() {
         setLastDoc(null);
         setHasMore(true);
       }
+
+      // First, fetch all batches and update the batch store
+      const batchesSnapshot = await db
+        .collection("batches")
+        .where("isDeleted", "==", false)
+        .get();
+
+      const batchesData: Record<string, any> = {};
+      batchesSnapshot.docs.forEach((doc) => {
+        batchesData[doc.id] = {
+          id: doc.id,
+          ...doc.data(),
+        };
+      });
+      setBatches(batchesData);
 
       let query = db
         .collection("attendance")
@@ -123,7 +138,7 @@ export default function AttendanceHistoryScreen() {
       // Map submissions with complete cache data
       const fetchedSubmissions = attendanceSnapshot.docs.map((doc) => {
         const data = doc.data();
-        const batch = batches[data.batchId];
+        const batch = batchesData[data.batchId];
         const program = newProgramCache[data.programId];
         const user = newUserCache[data.createdBy];
 
