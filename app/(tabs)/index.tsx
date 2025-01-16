@@ -19,6 +19,7 @@ import { router, useFocusEffect } from "expo-router";
 import { db } from "../../config/firebase";
 import { useAuthStore } from "../../store/authStore";
 import { useState, useCallback, useEffect, useRef } from "react";
+import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
 interface StatCardProps {
   title: string;
@@ -64,7 +65,7 @@ const ActivitySkeleton = () => {
             duration: 1000,
             useNativeDriver: true,
           }),
-        ]),
+        ])
       ).start();
     };
 
@@ -108,7 +109,7 @@ const StatSkeleton = ({ title, icon }: Omit<StatCardProps, "value">) => {
             duration: 1000,
             useNativeDriver: true,
           }),
-        ]),
+        ])
       ).start();
     };
 
@@ -157,53 +158,62 @@ export default function DashboardScreen() {
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const lastFetchRef = useRef<number>(0);
+  const FETCH_COOLDOWN = 30000; // 30 seconds cooldown
 
   const fetchStats = async () => {
     try {
-      // Fetch active batches count
-      const batchesSnapshot = await db
-        .collection("batches")
-        .where("isDeleted", "==", false)
-        .get();
+      // Check if we have recent stats in cache
+      const now = Date.now();
+      if (now - lastFetchRef.current < FETCH_COOLDOWN && stats.batches > 0) {
+        return;
+      }
+
+      // Fetch all stats in parallel
+      const [batchesSnapshot, programsSnapshot, studentsSnapshot] =
+        await Promise.all([
+          db.collection("batches").where("isDeleted", "==", false).get(),
+          db.collection("programs").where("isDeleted", "==", false).get(),
+          db.collection("students").where("isDeleted", "==", false).get(),
+        ]);
+
+      // Calculate counts
       const batchesCount = batchesSnapshot.size;
-
-      // Fetch active programs count
-      const programsSnapshot = await db
-        .collection("programs")
-        .where("isDeleted", "==", false)
-        .get();
       const programsCount = programsSnapshot.size;
-
-      // Fetch active students count
-      const studentsSnapshot = await db
-        .collection("students")
-        .where("isDeleted", "==", false)
-        .get();
       const studentsCount = studentsSnapshot.size;
 
-      // Calculate average attendance
+      // Fetch this week's attendance
+      const startOfWeek = new Date();
+      startOfWeek.setHours(0, 0, 0, 0);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Set to start of week (Sunday)
+
       const attendanceSnapshot = await db
         .collection("attendance")
-        .orderBy("createdAt", "desc")
-        .limit(100) // Get last 100 attendance records
+        .where("date", ">=", startOfWeek.toISOString())
+        .orderBy("date", "desc")
         .get();
 
-      let totalAttendance = 0;
-      let totalRecords = 0;
-
-      attendanceSnapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        const records = data.records || [];
-        const presentCount = records.filter((r: any) => r.isPresent).length;
-        const totalCount = records.length;
-        if (totalCount > 0) {
-          totalAttendance += (presentCount / totalCount) * 100;
-          totalRecords++;
-        }
-      });
+      // Calculate average attendance more efficiently
+      const attendanceStats = attendanceSnapshot.docs.reduce(
+        (acc, doc) => {
+          const data = doc.data();
+          const records = data.records || [];
+          if (records.length > 0) {
+            const presentCount = records.filter((r: any) => r.isPresent).length;
+            acc.totalAttendance += (presentCount / records.length) * 100;
+            acc.totalRecords++;
+          }
+          return acc;
+        },
+        { totalAttendance: 0, totalRecords: 0 }
+      );
 
       const averageAttendance =
-        totalRecords > 0 ? Math.round(totalAttendance / totalRecords) : 0;
+        attendanceStats.totalRecords > 0
+          ? Math.round(
+              attendanceStats.totalAttendance / attendanceStats.totalRecords
+            )
+          : 0;
 
       setStats({
         batches: batchesCount,
@@ -211,6 +221,8 @@ export default function DashboardScreen() {
         students: studentsCount,
         attendance: averageAttendance,
       });
+
+      lastFetchRef.current = now;
     } catch (error) {
       console.error("Error fetching stats:", error);
     }
@@ -218,83 +230,81 @@ export default function DashboardScreen() {
 
   const fetchRecentActivity = async () => {
     try {
-      setIsLoading(true);
-      const activities: Activity[] = [];
+      // Check if we have recent activity in cache
+      const now = Date.now();
+      if (
+        now - lastFetchRef.current < FETCH_COOLDOWN &&
+        recentActivity.length > 0
+      ) {
+        return;
+      }
 
-      // Fetch recent attendance records
+      setIsLoading(true);
+
+      // Get recent attendance records with specific fields only
       const attendanceSnapshot = await db
         .collection("attendance")
         .orderBy("createdAt", "desc")
         .limit(5)
         .get();
 
-      for (const doc of attendanceSnapshot.docs) {
+      if (attendanceSnapshot.empty) {
+        setRecentActivity([]);
+        return;
+      }
+
+      // Get unique batch and program IDs
+      const batchIds = new Set<string>();
+      const programIds = new Set<string>();
+
+      attendanceSnapshot.docs.forEach((doc) => {
         const data = doc.data();
-        const batchDoc = await db.collection("batches").doc(data.batchId).get();
-        const programDoc = await db
+        batchIds.add(data.batchId);
+        programIds.add(data.programId);
+      });
+
+      // Fetch all required batches and programs in parallel
+      const [batchDocs, programDocs] = await Promise.all([
+        db
+          .collection("batches")
+          .where("__name__", "in", Array.from(batchIds))
+          .get(),
+        db
           .collection("programs")
-          .doc(data.programId)
-          .get();
+          .where("__name__", "in", Array.from(programIds))
+          .get(),
+      ]);
 
-        if (batchDoc.exists && programDoc.exists) {
-          const batchName = batchDoc.data()?.name;
-          const programName = programDoc.data()?.name;
+      // Create lookup maps for batch and program data
+      const batchMap = new Map(
+        batchDocs.docs.map(
+          (doc) => [doc.id, doc.data().name] as [string, string]
+        )
+      );
+      const programMap = new Map(
+        programDocs.docs.map(
+          (doc) => [doc.id, doc.data().name] as [string, string]
+        )
+      );
 
-          activities.push({
-            id: doc.id,
-            type: "attendance",
-            description: `Attendance marked for ${batchName} - ${programName}`,
-            timestamp: data.createdAt ? new Date(data.createdAt) : new Date(),
-            time: getTimeAgo(
-              data.createdAt ? new Date(data.createdAt) : new Date(),
-            ),
-          });
-        }
-      }
-
-      // Fetch recent student registrations
-      const studentsSnapshot = await db
-        .collection("students")
-        .orderBy("createdAt", "desc")
-        .limit(5)
-        .get();
-
-      for (const doc of studentsSnapshot.docs) {
+      // Map attendance records to activities
+      const activities = attendanceSnapshot.docs.map((doc) => {
         const data = doc.data();
-        activities.push({
+        const batchName = batchMap.get(data.batchId) || "Unknown Batch";
+        const programName = programMap.get(data.programId) || "Unknown Program";
+
+        return {
           id: doc.id,
-          type: "registration",
-          description: `New student ${data.name} registered`,
+          type: "attendance" as const,
+          description: `Attendance marked for ${batchName} - ${programName}`,
           timestamp: data.createdAt ? new Date(data.createdAt) : new Date(),
           time: getTimeAgo(
-            data.createdAt ? new Date(data.createdAt) : new Date(),
+            data.createdAt ? new Date(data.createdAt) : new Date()
           ),
-        });
-      }
+        };
+      });
 
-      // Fetch recent batch creations
-      const batchesSnapshot = await db
-        .collection("batches")
-        .orderBy("createdAt", "desc")
-        .limit(5)
-        .get();
-
-      for (const doc of batchesSnapshot.docs) {
-        const data = doc.data();
-        activities.push({
-          id: doc.id,
-          type: "batch",
-          description: `New batch ${data.name} created`,
-          timestamp: data.createdAt ? new Date(data.createdAt) : new Date(),
-          time: getTimeAgo(
-            data.createdAt ? new Date(data.createdAt) : new Date(),
-          ),
-        });
-      }
-
-      // Sort activities by timestamp and take the most recent 5
-      activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      setRecentActivity(activities.slice(0, 5));
+      setRecentActivity(activities);
     } catch (error) {
       console.error("Error fetching recent activity:", error);
     } finally {
@@ -321,6 +331,7 @@ export default function DashboardScreen() {
   };
 
   const fetchInitialData = async () => {
+    if (refreshing) return; // Prevent multiple simultaneous refreshes
     setRefreshing(true);
     try {
       await Promise.all([fetchStats(), fetchRecentActivity()]);
@@ -330,15 +341,19 @@ export default function DashboardScreen() {
     setRefreshing(false);
   };
 
+  // Initial fetch
   useEffect(() => {
     fetchInitialData();
   }, []);
 
-  // Add useFocusEffect for automatic refetch
+  // Fetch on focus only if enough time has passed
   useFocusEffect(
     useCallback(() => {
-      fetchInitialData();
-    }, []),
+      const now = Date.now();
+      if (now - lastFetchRef.current >= FETCH_COOLDOWN) {
+        fetchInitialData();
+      }
+    }, [])
   );
 
   const StatCard = ({ title, value, icon }: StatCardProps) => {
@@ -378,8 +393,8 @@ export default function DashboardScreen() {
             type === "attendance"
               ? "calendar-check"
               : type === "registration"
-                ? "account-plus"
-                : "school"
+              ? "account-plus"
+              : "school"
           }
           size={24}
           color={COLORS.primary}
@@ -418,7 +433,7 @@ export default function DashboardScreen() {
             <StatSkeleton title="Batches" icon="account-group" />
             <StatSkeleton title="Programs" icon="book-open-variant" />
             <StatSkeleton title="Students" icon="account-multiple" />
-            <StatSkeleton title="Attendance Overall %" icon="chart-line" />
+            <StatSkeleton title="Attendance Weekly %" icon="chart-line" />
           </>
         ) : (
           <>
@@ -438,7 +453,7 @@ export default function DashboardScreen() {
               icon="account-multiple"
             />
             <StatCard
-              title="Attendance Overall %"
+              title="Attendance Weekly %"
               value={stats.attendance}
               icon="chart-line"
             />
@@ -600,6 +615,7 @@ const styles = StyleSheet.create({
   statTitle: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textLight,
+    textAlign: "center",
   },
   section: {
     padding: SPACING.lg,
