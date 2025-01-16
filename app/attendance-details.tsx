@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import {
   View,
   StyleSheet,
@@ -7,6 +7,7 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  FlatList,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "../components";
@@ -20,6 +21,13 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { db } from "../config/firebase";
 import { useBatchStore } from "../store/batchStore";
+
+interface RawAttendanceRecord {
+  studentId: string;
+  isPresent: boolean;
+  markedBy: "manual" | "scan";
+  timestamp: string;
+}
 
 interface AttendanceRecord {
   studentId: string;
@@ -39,7 +47,50 @@ interface AttendanceSubmission {
   submittedBy: string;
   submitterName: string;
   records: AttendanceRecord[];
+  totalRecords: number;
 }
+
+const STUDENTS_PER_PAGE = 20;
+
+const StudentRecordItem = memo(({ record }: { record: AttendanceRecord }) => (
+  <View style={styles.recordCard}>
+    <View style={styles.recordInfo}>
+      <Text style={styles.studentName} bold>
+        {record.studentName}
+      </Text>
+      <Text style={styles.studentId}>{record.studentId}</Text>
+      <View style={styles.recordMeta}>
+        <MaterialCommunityIcons
+          name={record.markedBy === "scan" ? "barcode-scan" : "gesture-tap"}
+          size={16}
+          color={COLORS.textLight}
+        />
+        <Text style={styles.metaText}>
+          {record.markedBy === "scan" ? "Scanned" : "Manual"} at{" "}
+          {new Date(record.timestamp).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </Text>
+      </View>
+    </View>
+    <View
+      style={[
+        styles.statusBadge,
+        record.isPresent ? styles.presentBadge : styles.absentBadge,
+      ]}
+    >
+      <MaterialCommunityIcons
+        name={record.isPresent ? "check" : "close"}
+        size={16}
+        color={COLORS.white}
+      />
+      <Text style={styles.statusText} bold>
+        {record.isPresent ? "Present" : "Absent"}
+      </Text>
+    </View>
+  </View>
+));
 
 export default function AttendanceDetailsScreen() {
   const router = useRouter();
@@ -48,13 +99,99 @@ export default function AttendanceDetailsScreen() {
     null
   );
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const { batches } = useBatchStore();
 
   // Cache for program, user, and student data
   const [dataCache, setDataCache] = useState<Record<string, any>>({});
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMoreRecords, setHasMoreRecords] = useState(true);
+  const [allRecords, setAllRecords] = useState<any[]>([]);
+
+  const fetchStudentBatch = async (studentIds: string[]) => {
+    const missingStudents = studentIds.filter(
+      (id) => !dataCache[`student_${id}`]
+    );
+
+    if (missingStudents.length === 0) {
+      return dataCache;
+    }
+
+    const newCache = { ...dataCache };
+    const studentBatches = [];
+
+    // Split into batches of 10 (Firestore limit)
+    for (let i = 0; i < missingStudents.length; i += 10) {
+      const batch = missingStudents.slice(i, i + 10);
+      studentBatches.push(
+        db.collection("students").where("__name__", "in", batch).get()
+      );
+    }
+
+    const results = await Promise.all(studentBatches);
+    results.forEach((batch) => {
+      batch.docs.forEach((doc) => {
+        if (doc.exists) {
+          newCache[`student_${doc.id}`] = doc.data();
+        }
+      });
+    });
+
+    setDataCache(newCache);
+    return newCache;
+  };
+
+  const loadMoreRecords = async () => {
+    if (!hasMoreRecords || loadingMore || !submission) return;
+
+    setLoadingMore(true);
+    try {
+      const startIndex = currentPage * STUDENTS_PER_PAGE;
+      const endIndex = startIndex + STUDENTS_PER_PAGE;
+      const nextPageRecords = allRecords.slice(startIndex, endIndex);
+
+      if (nextPageRecords.length === 0) {
+        setHasMoreRecords(false);
+        return;
+      }
+
+      // Fetch student data for the next page
+      const updatedCache = await fetchStudentBatch(
+        nextPageRecords.map((record) => record.studentId)
+      );
+
+      const newRecords = nextPageRecords.map((record: RawAttendanceRecord) => ({
+        studentId: record.studentId,
+        studentName:
+          (updatedCache || dataCache)[`student_${record.studentId}`]?.name ||
+          "Unknown Student",
+        isPresent: record.isPresent,
+        markedBy: record.markedBy,
+        timestamp: record.timestamp,
+      }));
+
+      setSubmission((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          records: [...prev.records, ...newRecords],
+        };
+      });
+
+      setCurrentPage((prev) => prev + 1);
+      setHasMoreRecords(endIndex < allRecords.length);
+    } catch (error) {
+      console.error("Error loading more records:", error);
+      Alert.alert("Error", "Failed to load more records");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const fetchSubmissionDetails = async () => {
     try {
+      setLoading(true);
       const submissionDoc = await db
         .collection("attendance")
         .doc(id as string)
@@ -68,108 +205,49 @@ export default function AttendanceDetailsScreen() {
       const data = submissionDoc.data();
       if (!data) return;
 
-      // Collect all unique IDs that need to be fetched
-      const idsToFetch = {
-        programs: new Set<string>([data.programId]),
-        users: new Set<string>([data.createdBy]),
-        students: new Set<string>(),
-      };
+      // Store all records for pagination
+      setAllRecords(data.records || []);
+      setCurrentPage(0);
+      setHasMoreRecords(true);
 
-      // Collect student IDs from records
-      data.records.forEach((record: any) => {
-        idsToFetch.students.add(record.studentId);
-      });
+      // Collect IDs for initial page
+      const initialRecords = (data.records || []).slice(0, STUDENTS_PER_PAGE);
 
       // Create a new cache with existing data
       const newCache = { ...dataCache };
 
-      // Prepare parallel queries for missing data
-      const queries: Promise<any>[] = [];
+      // Fetch program data
+      const programDoc = await db
+        .collection("programs")
+        .doc(data.programId)
+        .get();
+      if (programDoc.exists) {
+        newCache[`program_${data.programId}`] = programDoc.data();
+      }
 
-      // Programs
-      const missingPrograms = Array.from(idsToFetch.programs).filter(
-        (id) => !newCache[`program_${id}`]
+      // Fetch user data
+      const userDoc = await db.collection("users").doc(data.createdBy).get();
+      if (userDoc.exists) {
+        newCache[`user_${data.createdBy}`] = userDoc.data();
+      }
+
+      // Fetch initial student batch and update cache
+      const updatedCache = await fetchStudentBatch(
+        initialRecords.map((record: RawAttendanceRecord) => record.studentId)
       );
-      if (missingPrograms.length > 0) {
-        queries.push(
-          Promise.all(
-            missingPrograms.map((id) => db.collection("programs").doc(id).get())
-          )
-        );
-      }
 
-      // Users
-      const missingUsers = Array.from(idsToFetch.users).filter(
-        (id) => !newCache[`user_${id}`]
+      // Map the submission data with cached data for initial page
+      const studentRecords = initialRecords.map(
+        (record: RawAttendanceRecord) => ({
+          studentId: record.studentId,
+          studentName:
+            updatedCache[`student_${record.studentId}`]?.name ||
+            "Unknown Student",
+          isPresent: record.isPresent,
+          markedBy: record.markedBy,
+          timestamp: record.timestamp,
+        })
       );
-      if (missingUsers.length > 0) {
-        queries.push(
-          Promise.all(
-            missingUsers.map((id) => db.collection("users").doc(id).get())
-          )
-        );
-      }
-
-      // Students (using batched get for efficiency)
-      const missingStudents = Array.from(idsToFetch.students).filter(
-        (id) => !newCache[`student_${id}`]
-      );
-      if (missingStudents.length > 0) {
-        // Split into batches of 10 (Firestore limit)
-        const studentBatches = [];
-        for (let i = 0; i < missingStudents.length; i += 10) {
-          const batch = missingStudents.slice(i, i + 10);
-          studentBatches.push(
-            db.collection("students").where("__name__", "in", batch).get()
-          );
-        }
-        queries.push(Promise.all(studentBatches));
-      }
-
-      // Execute all queries in parallel
-      const results = await Promise.all(queries);
-
-      // Update cache with new data
-      let resultIndex = 0;
-      if (missingPrograms.length > 0) {
-        results[resultIndex].forEach((doc: any) => {
-          if (doc.exists) {
-            newCache[`program_${doc.id}`] = doc.data();
-          }
-        });
-        resultIndex++;
-      }
-
-      if (missingUsers.length > 0) {
-        results[resultIndex].forEach((doc: any) => {
-          if (doc.exists) {
-            newCache[`user_${doc.id}`] = doc.data();
-          }
-        });
-        resultIndex++;
-      }
-
-      if (missingStudents.length > 0) {
-        results[resultIndex].forEach((batch: any) => {
-          batch.docs.forEach((doc: any) => {
-            if (doc.exists) {
-              newCache[`student_${doc.id}`] = doc.data();
-            }
-          });
-        });
-      }
-
-      setDataCache(newCache);
-
-      // Map the submission data with cached data
-      const studentRecords = data.records.map((record: any) => ({
-        studentId: record.studentId,
-        studentName:
-          newCache[`student_${record.studentId}`]?.name || "Unknown Student",
-        isPresent: record.isPresent,
-        markedBy: record.markedBy,
-        timestamp: record.timestamp,
-      }));
 
       setSubmission({
         id: submissionDoc.id,
@@ -183,10 +261,16 @@ export default function AttendanceDetailsScreen() {
         submitterName:
           newCache[`user_${data.createdBy}`]?.name || "Unknown User",
         records: studentRecords,
+        totalRecords: data.records?.length || 0,
       });
+
+      setCurrentPage(1);
+      setHasMoreRecords(data.records?.length > STUDENTS_PER_PAGE);
     } catch (error) {
       console.error("Error fetching attendance details:", error);
       Alert.alert("Error", "Failed to load attendance details");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -206,7 +290,7 @@ export default function AttendanceDetailsScreen() {
     }
   };
 
-  if (!submission) {
+  if (!submission || loading) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -222,7 +306,7 @@ export default function AttendanceDetailsScreen() {
   }
 
   const presentCount = submission.records.filter((r) => r.isPresent).length;
-  const totalCount = submission.records.length;
+  const totalCount = submission.totalRecords;
 
   return (
     <View style={styles.container}>
@@ -232,7 +316,7 @@ export default function AttendanceDetailsScreen() {
         </Text>
       </View>
 
-      <ScrollView
+      <FlatList
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -243,120 +327,97 @@ export default function AttendanceDetailsScreen() {
             tintColor={COLORS.primary}
           />
         }
-      >
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <Text style={styles.date} bold>
-              {new Date(submission.date).toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </Text>
-            <View style={styles.attendanceStats}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue} bold>
-                  {presentCount}/{totalCount}
+        ListHeaderComponent={() => (
+          <>
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryHeader}>
+                <Text style={styles.date} bold>
+                  {new Date(submission.date).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
                 </Text>
-                <Text style={styles.statLabel}>Present</Text>
+                <View style={styles.attendanceStats}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue} bold>
+                      {presentCount}/{totalCount}
+                    </Text>
+                    <Text style={styles.statLabel}>Present</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue} bold>
+                      {Math.round((presentCount / totalCount) * 100)}%
+                    </Text>
+                    <Text style={styles.statLabel}>Rate</Text>
+                  </View>
+                </View>
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue} bold>
-                  {Math.round((presentCount / totalCount) * 100)}%
-                </Text>
-                <Text style={styles.statLabel}>Rate</Text>
-              </View>
-            </View>
-          </View>
 
-          <View style={styles.divider} />
+              <View style={styles.divider} />
 
-          <View style={styles.summaryContent}>
-            <View style={styles.summaryRow}>
-              <MaterialCommunityIcons
-                name="book-education"
-                size={20}
-                color={COLORS.primary}
-              />
-              <Text style={styles.summaryText}>{submission.programName}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <MaterialCommunityIcons
-                name="account-group"
-                size={20}
-                color={COLORS.primary}
-              />
-              <Text style={styles.summaryText}>{submission.batchName}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <MaterialCommunityIcons
-                name="account"
-                size={20}
-                color={COLORS.primary}
-              />
-              <Text style={styles.summaryText}>
-                Submitted by {submission.submitterName}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle} bold>
-            Student Records
-          </Text>
-          {submission.records.map((record, index) => (
-            <View
-              key={record.studentId}
-              style={[
-                styles.recordCard,
-                index === submission.records.length - 1 && { marginBottom: 0 },
-              ]}
-            >
-              <View style={styles.recordInfo}>
-                <Text style={styles.studentName} bold>
-                  {record.studentName}
-                </Text>
-                <Text style={styles.studentId}>{record.studentId}</Text>
-                <View style={styles.recordMeta}>
+              <View style={styles.summaryContent}>
+                <View style={styles.summaryRow}>
                   <MaterialCommunityIcons
-                    name={
-                      record.markedBy === "scan"
-                        ? "barcode-scan"
-                        : "gesture-tap"
-                    }
-                    size={16}
-                    color={COLORS.textLight}
+                    name="book-education"
+                    size={20}
+                    color={COLORS.primary}
                   />
-                  <Text style={styles.metaText}>
-                    {record.markedBy === "scan" ? "Scanned" : "Manual"} at{" "}
-                    {new Date(record.timestamp).toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                  <Text style={styles.summaryText}>
+                    {submission.programName}
+                  </Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <MaterialCommunityIcons
+                    name="account-group"
+                    size={20}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.summaryText}>{submission.batchName}</Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <MaterialCommunityIcons
+                    name="account"
+                    size={20}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.summaryText}>
+                    Submitted by {submission.submitterName}
                   </Text>
                 </View>
               </View>
-              <View
-                style={[
-                  styles.statusBadge,
-                  record.isPresent ? styles.presentBadge : styles.absentBadge,
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={record.isPresent ? "check" : "close"}
-                  size={16}
-                  color={COLORS.white}
-                />
-                <Text style={styles.statusText} bold>
-                  {record.isPresent ? "Present" : "Absent"}
-                </Text>
-              </View>
             </View>
-          ))}
-        </View>
-      </ScrollView>
+
+            {/* <View style={styles.section}>
+              <Text style={styles.sectionTitle} bold>
+                Student Records ({submission.records.length} of {totalCount})
+              </Text>
+            </View> */}
+          </>
+        )}
+        data={submission.records}
+        keyExtractor={(item) => item.studentId}
+        renderItem={({ item: record }) => <StudentRecordItem record={record} />}
+        ListFooterComponent={() =>
+          loadingMore ? (
+            <View style={styles.loadingMore}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            </View>
+          ) : null
+        }
+        onEndReached={() => {
+          if (hasMoreRecords && !loadingMore) {
+            loadMoreRecords();
+          }
+        }}
+        onEndReachedThreshold={0.2}
+        contentContainerStyle={styles.section}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        initialNumToRender={10}
+      />
     </View>
   );
 }
@@ -491,5 +552,9 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.white,
+  },
+  loadingMore: {
+    padding: SPACING.md,
+    alignItems: "center",
   },
 });
