@@ -397,7 +397,7 @@ export default function AttendanceDetailsScreen() {
           </>
         )}
         data={submission.records}
-        keyExtractor={(item) => item.studentId}
+        keyExtractor={(item) => `${item.studentId}_${item.timestamp}`}
         renderItem={({ item: record }) => <StudentRecordItem record={record} />}
         ListFooterComponent={() =>
           loadingMore ? (
