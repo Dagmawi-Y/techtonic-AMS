@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "../components";
@@ -36,10 +37,11 @@ export default function AttendanceHistoryScreen() {
   const router = useRouter();
   const [submissions, setSubmissions] = useState<AttendanceSubmission[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchSubmissions = async () => {
     try {
-      // Get attendance records ordered by date
+      // get attendance records ordered by date
       const attendanceSnapshot = await db
         .collection("attendance")
         .orderBy("createdAt", "desc")
@@ -64,7 +66,7 @@ export default function AttendanceHistoryScreen() {
 
           // Calculate present count
           const presentCount = data.records.filter(
-            (r: any) => r.isPresent,
+            (r: any) => r.isPresent
           ).length;
           const totalCount = data.records.length;
 
@@ -87,13 +89,15 @@ export default function AttendanceHistoryScreen() {
             submittedBy: userData?.name || "Unknown User",
             createdAt: data.createdAt,
           } as AttendanceSubmission;
-        }),
+        })
       );
 
       setSubmissions(fetchedSubmissions);
     } catch (error) {
       console.error("Error fetching attendance history:", error);
       Alert.alert("Error", "Failed to load attendance history");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -112,6 +116,21 @@ export default function AttendanceHistoryScreen() {
       setRefreshing(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title} bold>
+            Attendance History
+          </Text>
+        </View>
+        <View style={[styles.content, styles.centerContent]}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -177,7 +196,7 @@ export default function AttendanceHistoryScreen() {
                 <View style={styles.statItem}>
                   <Text style={styles.statValue} bold>
                     {Math.round(
-                      (submission.presentCount / submission.totalCount) * 100,
+                      (submission.presentCount / submission.totalCount) * 100
                     )}
                     %
                   </Text>
@@ -283,5 +302,9 @@ const styles = StyleSheet.create({
   submittedBy: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textLight,
+  },
+  centerContent: {
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

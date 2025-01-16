@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "../components";
@@ -43,7 +44,7 @@ export default function AttendanceDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const [submission, setSubmission] = useState<AttendanceSubmission | null>(
-    null,
+    null
   );
   const [refreshing, setRefreshing] = useState(false);
 
@@ -88,7 +89,7 @@ export default function AttendanceDetailsScreen() {
             markedBy: record.markedBy,
             timestamp: record.timestamp,
           } as AttendanceRecord;
-        }),
+        })
       );
 
       setSubmission({
@@ -133,7 +134,7 @@ export default function AttendanceDetailsScreen() {
           </Text>
         </View>
         <View style={[styles.content, styles.centerContent]}>
-          <Text>Loading...</Text>
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       </View>
     );
@@ -300,6 +301,7 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
   },
   centerContent: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
