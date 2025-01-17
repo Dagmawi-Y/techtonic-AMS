@@ -189,7 +189,7 @@ export default function DashboardScreen() {
 
       const attendanceSnapshot = await db
         .collection("attendance")
-        .where("date", ">=", startOfWeek.toISOString())
+        // .where("date", ">=", startOfWeek.toISOString())
         .orderBy("date", "desc")
         .get();
 
