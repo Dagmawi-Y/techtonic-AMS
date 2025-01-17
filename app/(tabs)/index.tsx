@@ -368,7 +368,7 @@ export default function DashboardScreen() {
         case "students":
           router.push("/students");
           break;
-        case "attendance %":
+        case "attendance overall %":
           router.push("/reports");
           break;
       }
@@ -433,7 +433,7 @@ export default function DashboardScreen() {
             <StatSkeleton title="Batches" icon="account-group" />
             <StatSkeleton title="Programs" icon="book-open-variant" />
             <StatSkeleton title="Students" icon="account-multiple" />
-            <StatSkeleton title="Attendance Weekly %" icon="chart-line" />
+            <StatSkeleton title="Attendance Overall %" icon="chart-line" />
           </>
         ) : (
           <>
@@ -453,7 +453,7 @@ export default function DashboardScreen() {
               icon="account-multiple"
             />
             <StatCard
-              title="Attendance Weekly %"
+              title="Attendance Overall %"
               value={stats.attendance}
               icon="chart-line"
             />
