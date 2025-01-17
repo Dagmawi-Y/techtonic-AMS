@@ -9,6 +9,7 @@ import {
   Alert,
   RefreshControl,
   Animated,
+  FlatList,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
@@ -188,7 +189,7 @@ const Dropdown = memo(
         )}
       </View>
     );
-  },
+  }
 );
 
 // BatchSelector component for single batch selection
@@ -285,7 +286,7 @@ const BatchSelector = memo(
         )}
       </View>
     );
-  },
+  }
 );
 
 // ProgramSelector component for multi-selection
@@ -333,7 +334,9 @@ const ProgramSelector = memo(
           <Text style={styles.selectorButtonText}>
             {selectedPrograms.length === 0
               ? "Select Programs"
-              : `${selectedPrograms.length} Program${selectedPrograms.length === 1 ? "" : "s"} Selected`}
+              : `${selectedPrograms.length} Program${
+                  selectedPrograms.length === 1 ? "" : "s"
+                } Selected`}
           </Text>
           <MaterialCommunityIcons
             name={isOpen ? "chevron-up" : "chevron-down"}
@@ -346,7 +349,7 @@ const ProgramSelector = memo(
           <View style={styles.selectorList}>
             {programs.map((program) => {
               const isSelected = selectedPrograms.some(
-                (p) => p.id === program.id,
+                (p) => p.id === program.id
               );
               return (
                 <TouchableOpacity
@@ -358,7 +361,7 @@ const ProgramSelector = memo(
                   onPress={() => {
                     if (isSelected) {
                       onSelect(
-                        selectedPrograms.filter((p) => p.id !== program.id),
+                        selectedPrograms.filter((p) => p.id !== program.id)
                       );
                     } else {
                       onSelect([...selectedPrograms, program]);
@@ -396,7 +399,7 @@ const ProgramSelector = memo(
         )}
       </View>
     );
-  },
+  }
 );
 
 // BarcodeScanner component
@@ -465,7 +468,7 @@ const BarcodeScanner = memo(
         </TouchableOpacity>
       </View>
     );
-  },
+  }
 );
 
 const StudentCard = memo(
@@ -508,7 +511,7 @@ const StudentCard = memo(
         </View>
       </View>
     </TouchableOpacity>
-  ),
+  )
 );
 
 const CreateStudentModal = memo(
@@ -588,7 +591,7 @@ const CreateStudentModal = memo(
         // Clear any errors for fields that have changed
         const changedFields = Object.keys(newData).filter(
           (key) =>
-            newData[key as keyof FormData] !== formData[key as keyof FormData],
+            newData[key as keyof FormData] !== formData[key as keyof FormData]
         );
 
         if (changedFields.length > 0) {
@@ -603,7 +606,7 @@ const CreateStudentModal = memo(
 
         onUpdateForm(newData);
       },
-      [formData, onUpdateForm],
+      [formData, onUpdateForm]
     );
 
     const handleSaveClick = useCallback(() => {
@@ -767,7 +770,7 @@ const CreateStudentModal = memo(
         </View>
       </Modal>
     );
-  },
+  }
 );
 
 // StudentDetailsModal component
@@ -916,7 +919,7 @@ const StudentDetailsModal = memo(
         </View>
       </Modal>
     );
-  },
+  }
 );
 
 // DeleteConfirmationDialog component
@@ -977,7 +980,7 @@ const DeleteConfirmationDialog = memo(
         </View>
       </Modal>
     );
-  },
+  }
 );
 
 const EmptyState = memo(() => (
@@ -1014,7 +1017,7 @@ const StudentSkeleton = () => {
             duration: 1000,
             useNativeDriver: true,
           }),
-        ]),
+        ])
       ).start();
     };
 
@@ -1090,7 +1093,7 @@ export default function StudentsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchInitialData();
-    }, []),
+    }, [])
   );
 
   const fetchInitialData = async () => {
@@ -1432,7 +1435,31 @@ export default function StudentsScreen() {
     (student) =>
       student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.department.toLowerCase().includes(searchQuery.toLowerCase()),
+      student.department.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: Student }) => (
+      <StudentCard
+        key={item.id}
+        student={item}
+        onPress={() => setSelectedStudent(item)}
+      />
+    ),
+    []
+  );
+
+  const ListEmptyComponent = useCallback(() => <EmptyState />, []);
+
+  const LoadingComponent = useCallback(
+    () => (
+      <>
+        <StudentSkeleton />
+        <StudentSkeleton />
+        <StudentSkeleton />
+      </>
+    ),
+    []
   );
 
   return (
@@ -1474,39 +1501,17 @@ export default function StudentsScreen() {
       </View>
 
       {isLoading ? (
-        <ScrollView
-          style={styles.content}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[COLORS.primary]}
-              tintColor={COLORS.primary}
-            />
-          }
-        >
-          <StudentSkeleton />
-          <StudentSkeleton />
-          <StudentSkeleton />
-        </ScrollView>
-      ) : students.length === 0 ? (
-        <ScrollView
-          contentContainerStyle={{ flex: 1 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[COLORS.primary]}
-              tintColor={COLORS.primary}
-            />
-          }
-        >
-          <EmptyState />
-        </ScrollView>
+        <View style={styles.content}>
+          <LoadingComponent />
+        </View>
       ) : (
-        <ScrollView
-          style={styles.content}
+        <FlatList
+          data={filteredStudents}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={ListEmptyComponent}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -1515,15 +1520,7 @@ export default function StudentsScreen() {
               tintColor={COLORS.primary}
             />
           }
-        >
-          {filteredStudents.map((student) => (
-            <StudentCard
-              key={student.id}
-              student={student}
-              onPress={() => setSelectedStudent(student)}
-            />
-          ))}
-        </ScrollView>
+        />
       )}
 
       <CreateStudentModal
