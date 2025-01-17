@@ -1502,9 +1502,9 @@ export default function StudentsScreen() {
   );
 
   // Add navigation handler
-  const handleNavigateToMigrations = useCallback(() => {
-    router.push("/migrations");
-  }, [router]);
+  // const handleNavigateToMigrations = useCallback(() => {
+  //   router.push("/migrations");
+  // }, [router]);
 
   return (
     <View style={styles.container}>
@@ -1526,7 +1526,7 @@ export default function StudentsScreen() {
             }}
           />
         </View>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.iconButton}
           onPress={handleNavigateToMigrations}
         >
@@ -1535,7 +1535,7 @@ export default function StudentsScreen() {
             size={24}
             color={COLORS.primary}
           />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setIsModalVisible(true)}

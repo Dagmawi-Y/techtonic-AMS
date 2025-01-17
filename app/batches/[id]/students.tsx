@@ -2,10 +2,10 @@ import React, { useState, useEffect, memo } from "react";
 import {
   View,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   RefreshControl,
   Alert,
+  FlatList,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -54,6 +54,38 @@ const EmptyState = memo(() => (
     <Text style={styles.emptyStateMessage}>
       This batch doesn't have any students enrolled yet
     </Text>
+  </View>
+));
+
+const StudentItem = memo(({ student }: { student: Student }) => (
+  <View style={styles.studentCard}>
+    <View style={styles.studentHeader}>
+      <MaterialCommunityIcons name="account" size={24} color={COLORS.primary} />
+      <View style={styles.studentInfo}>
+        <Text style={styles.studentName} bold>
+          {student.name}
+        </Text>
+        <Text style={styles.studentId}>{student.studentId}</Text>
+      </View>
+      <View style={styles.departmentBadge}>
+        <Text style={styles.departmentText} bold>
+          {student.department}
+        </Text>
+      </View>
+    </View>
+    <View style={styles.studentDetails}>
+      <View style={styles.detailRow}>
+        <MaterialCommunityIcons
+          name="book-open-variant"
+          size={16}
+          color={COLORS.secondary}
+        />
+        <Text style={styles.detailText}>
+          {student.programs.length} Program
+          {student.programs.length !== 1 ? "s" : ""}
+        </Text>
+      </View>
+    </View>
   </View>
 ));
 
@@ -127,8 +159,10 @@ export default function BatchStudentsScreen() {
   if (!batch) {
     return (
       <View style={styles.container}>
-        <ScrollView
+        <FlatList
           contentContainerStyle={styles.loadingContainer}
+          data={[]}
+          renderItem={() => null}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -137,9 +171,10 @@ export default function BatchStudentsScreen() {
               tintColor={COLORS.primary}
             />
           }
-        >
-          <Text style={styles.loadingText}>Loading...</Text>
-        </ScrollView>
+          ListEmptyComponent={
+            <Text style={styles.loadingText}>Loading...</Text>
+          }
+        />
       </View>
     );
   }
@@ -162,69 +197,22 @@ export default function BatchStudentsScreen() {
         </Text>
       </View>
 
-      {students.length === 0 ? (
-        <ScrollView
-          contentContainerStyle={{ flex: 1 }}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[COLORS.primary]}
-              tintColor={COLORS.primary}
-            />
-          }
-        >
-          <EmptyState />
-        </ScrollView>
-      ) : (
-        <ScrollView
-          style={styles.studentList}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[COLORS.primary]}
-              tintColor={COLORS.primary}
-            />
-          }
-        >
-          {students.map((student) => (
-            <View key={student.id} style={styles.studentCard}>
-              <View style={styles.studentHeader}>
-                <MaterialCommunityIcons
-                  name="account"
-                  size={24}
-                  color={COLORS.primary}
-                />
-                <View style={styles.studentInfo}>
-                  <Text style={styles.studentName} bold>
-                    {student.name}
-                  </Text>
-                  <Text style={styles.studentId}>{student.studentId}</Text>
-                </View>
-                <View style={styles.departmentBadge}>
-                  <Text style={styles.departmentText} bold>
-                    {student.department}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.studentDetails}>
-                <View style={styles.detailRow}>
-                  <MaterialCommunityIcons
-                    name="book-open-variant"
-                    size={16}
-                    color={COLORS.secondary}
-                  />
-                  <Text style={styles.detailText}>
-                    {student.programs.length} Program
-                    {student.programs.length !== 1 ? "s" : ""}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-      )}
+      <FlatList
+        data={students}
+        renderItem={({ item }) => <StudentItem student={item} />}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={students.length === 0 && { flex: 1 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+        ListEmptyComponent={<EmptyState />}
+        style={styles.studentList}
+      />
     </View>
   );
 }
