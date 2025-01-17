@@ -1,4 +1,11 @@
-import React, { useState, useEffect, memo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  memo,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   View,
   StyleSheet,
@@ -25,6 +32,7 @@ import { Text, TextInput } from "../../components";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { db } from "../../config/firebase";
 import { useAuthStore } from "../../store/authStore";
+import debounce from "lodash/debounce";
 
 interface Program {
   id: string;
@@ -46,6 +54,7 @@ interface Student {
   department: string;
   batch: Batch | null;
   programs: Program[];
+  searchableFields: string[];
 }
 
 interface FormErrors {
@@ -1026,6 +1035,47 @@ export default function StudentsScreen() {
   const [lastVisible, setLastVisible] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
 
+  // Add debounced search
+  const debouncedSearch = useMemo(
+    () =>
+      debounce(async (query: string) => {
+        setIsLoading(true);
+        setLastVisible(null);
+        setHasMore(true);
+        try {
+          let searchQuery = db
+            .collection("students")
+            .where("isDeleted", "==", false);
+
+          if (query.trim()) {
+            searchQuery = searchQuery.where(
+              "searchableFields",
+              "array-contains",
+              query.toLowerCase().trim()
+            );
+          }
+
+          searchQuery = searchQuery.limit(10);
+
+          const snapshot = await searchQuery.get();
+          const fetchedStudents = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as Student[];
+
+          setStudents(fetchedStudents);
+          setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
+          setHasMore(snapshot.docs.length === 10);
+        } catch (error) {
+          console.error("Error searching students:", error);
+          Alert.alert("Error", "Failed to search students");
+        } finally {
+          setIsLoading(false);
+        }
+      }, 300),
+    []
+  );
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -1057,8 +1107,25 @@ export default function StudentsScreen() {
         setIsLoadingMore(true);
       }
 
-      let query = db.collection("students").limit(10);
+      let query = db.collection("students").where("isDeleted", "==", false);
 
+      // Add search query if present
+      if (searchQuery.trim()) {
+        // Get all words that start with the search query
+        const searchTerms = searchQuery.toLowerCase().trim().split(/\s+/);
+
+        // Use the first term for the main query
+        query = query.where(
+          "searchableFields",
+          "array-contains",
+          searchTerms[0]
+        );
+      }
+
+      // Add limit after all other conditions
+      query = query.limit(10);
+
+      // Add start after if we have a last document
       if (loadMore && lastVisible) {
         query = query.startAfter(lastVisible);
       }
@@ -1069,10 +1136,27 @@ export default function StudentsScreen() {
         ...doc.data(),
       })) as Student[];
 
-      if (loadMore) {
-        setStudents((prev) => [...prev, ...fetchedStudents]);
+      // If there are additional search terms, filter results client-side
+      if (searchQuery.trim()) {
+        const searchTerms = searchQuery.toLowerCase().trim().split(/\s+/);
+        const filteredStudents = fetchedStudents.filter((student) => {
+          const searchableFields = student.searchableFields || [];
+          return searchTerms.every((term) =>
+            searchableFields.some((field) => field.includes(term))
+          );
+        });
+
+        if (loadMore) {
+          setStudents((prev) => [...prev, ...filteredStudents]);
+        } else {
+          setStudents(filteredStudents);
+        }
       } else {
-        setStudents(fetchedStudents);
+        if (loadMore) {
+          setStudents((prev) => [...prev, ...fetchedStudents]);
+        } else {
+          setStudents(fetchedStudents);
+        }
       }
 
       setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
@@ -1393,13 +1477,6 @@ export default function StudentsScreen() {
     }
   };
 
-  const filteredStudents = students.filter(
-    (student) =>
-      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.department.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const renderItem = useCallback(
     ({ item }: { item: Student }) => (
       <StudentCard
@@ -1424,36 +1501,41 @@ export default function StudentsScreen() {
     []
   );
 
+  // Add navigation handler
+  const handleNavigateToMigrations = useCallback(() => {
+    router.push("/migrations");
+  }, [router]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View
-          style={[
-            styles.searchContainer,
-            (isLoading || students.length === 0) &&
-              styles.searchContainerDisabled,
-          ]}
-        >
+        <View style={styles.searchContainer}>
           <MaterialCommunityIcons
             name="magnify"
             size={24}
-            color={
-              isLoading || students.length === 0 ? COLORS.gray : COLORS.primary
-            }
+            color={COLORS.primary}
           />
           <TextInput
-            style={[
-              styles.searchInput,
-              (isLoading || students.length === 0) &&
-                styles.searchInputDisabled,
-            ]}
+            style={styles.searchInput}
             placeholder="Search students..."
             placeholderTextColor={COLORS.gray}
             value={searchQuery}
-            onChangeText={setSearchQuery}
-            editable={!isLoading && students.length > 0}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              debouncedSearch(text);
+            }}
           />
         </View>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={handleNavigateToMigrations}
+        >
+          <MaterialCommunityIcons
+            name="database-cog"
+            size={24}
+            color={COLORS.primary}
+          />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setIsModalVisible(true)}
@@ -1468,7 +1550,7 @@ export default function StudentsScreen() {
         </View>
       ) : (
         <FlatList
-          data={filteredStudents}
+          data={students}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.content}
@@ -2089,5 +2171,9 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: FONT_SIZES.md,
     color: COLORS.textLight,
+  },
+  iconButton: {
+    padding: SPACING.sm,
+    marginRight: SPACING.sm,
   },
 });
