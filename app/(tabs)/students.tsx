@@ -66,69 +66,6 @@ interface FormData {
 
 const DEPARTMENTS = ["SE", "IS", "IT", "CS", "DS"];
 
-const mockPrograms: Program[] = [
-  {
-    id: "1",
-    name: "Web Development",
-    description: "Full stack web development with modern technologies",
-  },
-  {
-    id: "2",
-    name: "Mobile App Development",
-    description: "Cross-platform mobile app development",
-  },
-];
-
-const mockBatches: Batch[] = [
-  {
-    id: "1",
-    name: "2024 Batch",
-    startDate: "2024-01-01",
-    endDate: "2024-12-31",
-  },
-  {
-    id: "2",
-    name: "2025 Batch",
-    startDate: "2025-01-01",
-    endDate: "2025-12-31",
-  },
-];
-
-const mockStudents: Student[] = [
-  {
-    id: "1",
-    studentId: "STU001",
-    name: "John Doe",
-    department: "SE",
-    batch: mockBatches[0],
-    programs: [mockPrograms[0]],
-  },
-  {
-    id: "2",
-    studentId: "STU002",
-    name: "Jane Smith",
-    department: "CS",
-    batch: mockBatches[1],
-    programs: [mockPrograms[0], mockPrograms[1]],
-  },
-  {
-    id: "3",
-    studentId: "STU003",
-    name: "Mike Johnson",
-    department: "IT",
-    batch: mockBatches[0],
-    programs: [mockPrograms[1]],
-  },
-  {
-    id: "4",
-    studentId: "STU004",
-    name: "Sarah Williams",
-    department: "DS",
-    batch: mockBatches[1],
-    programs: [mockPrograms[0], mockPrograms[1]],
-  },
-];
-
 // Dropdown component for single selection
 const Dropdown = memo(
   ({
@@ -1520,6 +1457,7 @@ export default function StudentsScreen() {
               tintColor={COLORS.primary}
             />
           }
+          style={styles.flatList}
         />
       )}
 
@@ -1596,8 +1534,8 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   content: {
-    flex: 1,
     padding: SPACING.md,
+    flexGrow: 1,
   },
   studentCard: {
     backgroundColor: COLORS.white,
@@ -2083,5 +2021,8 @@ const styles = StyleSheet.create({
     width: 120,
     height: 14,
     marginLeft: SPACING.xs,
+  },
+  flatList: {
+    flex: 1,
   },
 });
