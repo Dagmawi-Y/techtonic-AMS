@@ -2,11 +2,11 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   RefreshControl,
   Alert,
   ActivityIndicator,
+  FlatList,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "../components";
@@ -34,7 +34,7 @@ interface AttendanceSubmission {
   createdAt: string;
 }
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 
 export default function AttendanceHistoryScreen() {
   const router = useRouter();
@@ -189,6 +189,60 @@ export default function AttendanceHistoryScreen() {
     fetchSubmissions();
   }, []);
 
+  const renderItem = ({ item }: { item: AttendanceSubmission }) => (
+    <TouchableOpacity
+      key={item.id}
+      style={styles.card}
+      onPress={() =>
+        router.push({
+          pathname: "/attendance-details",
+          params: { id: item.id },
+        })
+      }
+    >
+      <View style={styles.cardHeader}>
+        <Text style={styles.date} bold>
+          {new Date(item.date).toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          })}
+        </Text>
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={24}
+          color={COLORS.primary}
+        />
+      </View>
+
+      <View style={styles.cardContent}>
+        <View style={styles.programInfo}>
+          <Text style={styles.programName} bold>
+            {item.programName}
+          </Text>
+          <Text style={styles.batchName}>{item.batchName}</Text>
+        </View>
+
+        <View style={styles.attendanceStats}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue} bold>
+              {item.presentCount}/{item.totalCount}
+            </Text>
+            <Text style={styles.statLabel}>Present</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue} bold>
+              {Math.round((item.presentCount / item.totalCount) * 100)}%
+            </Text>
+            <Text style={styles.statLabel}>Attendance</Text>
+          </View>
+        </View>
+
+        <Text style={styles.submittedBy}>Submitted by {item.submittedBy}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -212,8 +266,12 @@ export default function AttendanceHistoryScreen() {
         </Text>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={submissions}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
         style={styles.content}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -223,92 +281,27 @@ export default function AttendanceHistoryScreen() {
             tintColor={COLORS.primary}
           />
         }
-        onScroll={({ nativeEvent }) => {
-          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-          const isCloseToBottom =
-            layoutMeasurement.height + contentOffset.y >=
-            contentSize.height - 50;
-          if (isCloseToBottom && hasMore && !isLoadingMore) {
+        onEndReached={() => {
+          if (hasMore && !isLoadingMore) {
             loadMore();
           }
         }}
-        scrollEventThrottle={400}
-      >
-        {submissions.map((submission) => (
-          <TouchableOpacity
-            key={submission.id}
-            style={styles.card}
-            onPress={() =>
-              router.push({
-                pathname: "/attendance-details",
-                params: { id: submission.id },
-              })
-            }
-          >
-            <View style={styles.cardHeader}>
-              <Text style={styles.date} bold>
-                {new Date(submission.date).toLocaleDateString("en-US", {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </Text>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color={COLORS.primary}
-              />
-            </View>
-
-            <View style={styles.cardContent}>
-              <View style={styles.programInfo}>
-                <Text style={styles.programName} bold>
-                  {submission.programName}
-                </Text>
-                <Text style={styles.batchName}>{submission.batchName}</Text>
-              </View>
-
-              <View style={styles.attendanceStats}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue} bold>
-                    {submission.presentCount}/{submission.totalCount}
-                  </Text>
-                  <Text style={styles.statLabel}>Present</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue} bold>
-                    {Math.round(
-                      (submission.presentCount / submission.totalCount) * 100
-                    )}
-                    %
-                  </Text>
-                  <Text style={styles.statLabel}>Attendance</Text>
-                </View>
-              </View>
-
-              <Text style={styles.submittedBy}>
-                Submitted by {submission.submittedBy}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-
-        {isLoadingMore && (
-          <View style={styles.loadingMore}>
-            <ActivityIndicator size="small" color={COLORS.primary} />
-          </View>
-        )}
-
-        {!hasMore && submissions.length > 0 && (
-          <Text style={styles.noMoreData}>No more records to load</Text>
-        )}
-
-        {submissions.length === 0 && (
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={() =>
+          isLoadingMore ? (
+            <ActivityIndicator
+              size="small"
+              color={COLORS.primary}
+              style={{ marginVertical: SPACING.md }}
+            />
+          ) : null
+        }
+        ListEmptyComponent={() => (
           <View style={styles.emptyState}>
             <Text>No attendance records found</Text>
           </View>
         )}
-      </ScrollView>
+      />
     </View>
   );
 }
@@ -335,6 +328,8 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  listContent: {
     padding: SPACING.sm,
   },
   card: {
@@ -409,5 +404,16 @@ const styles = StyleSheet.create({
   emptyState: {
     padding: SPACING.xl,
     alignItems: "center",
+  },
+  cardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING.sm,
+    gap: SPACING.xs,
+  },
+  cardText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    flex: 1,
   },
 });
