@@ -1057,7 +1057,7 @@ export default function StudentsScreen() {
         setIsLoadingMore(true);
       }
 
-      let query = db.collection("students").orderBy("name").limit(10);
+      let query = db.collection("students").limit(10);
 
       if (loadMore && lastVisible) {
         query = query.startAfter(lastVisible);
