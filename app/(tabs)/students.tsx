@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Animated,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
@@ -1021,6 +1022,9 @@ export default function StudentsScreen() {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [lastVisible, setLastVisible] = useState<any>(null);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     fetchInitialData();
@@ -1039,31 +1043,52 @@ export default function StudentsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    try {
-      await fetchInitialData();
-    } catch (error) {
-      console.error("Error refreshing data:", error);
-    }
+    setLastVisible(null);
+    setHasMore(true);
+    await fetchStudents();
     setRefreshing(false);
   };
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (loadMore = false) => {
     try {
-      setIsLoading(true);
-      const studentsSnapshot = await db
-        .collection("students")
-        .where("isDeleted", "==", false)
-        .get();
-      const fetchedStudents = studentsSnapshot.docs.map((doc) => ({
+      if (!loadMore) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
+      let query = db.collection("students").orderBy("name").limit(10);
+
+      if (loadMore && lastVisible) {
+        query = query.startAfter(lastVisible);
+      }
+
+      const snapshot = await query.get();
+      const fetchedStudents = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Student[];
-      setStudents(fetchedStudents);
+
+      if (loadMore) {
+        setStudents((prev) => [...prev, ...fetchedStudents]);
+      } else {
+        setStudents(fetchedStudents);
+      }
+
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
+      setHasMore(snapshot.docs.length === 10);
     } catch (error) {
       console.error("Error fetching students:", error);
       Alert.alert("Error", "Failed to fetch students");
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMore) {
+      fetchStudents(true);
     }
   };
 
@@ -1458,7 +1483,22 @@ export default function StudentsScreen() {
             />
           }
           style={styles.flatList}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={() =>
+            isLoadingMore ? (
+              <View style={styles.loadingMore}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              </View>
+            ) : null
+          }
         />
+      )}
+
+      {isLoading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
       )}
 
       <CreateStudentModal
@@ -2024,5 +2064,30 @@ const styles = StyleSheet.create({
   },
   flatList: {
     flex: 1,
+  },
+  loadingContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+  },
+  loadingMore: {
+    paddingVertical: SPACING.md,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: SPACING.xl,
+  },
+  emptyText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textLight,
   },
 });
