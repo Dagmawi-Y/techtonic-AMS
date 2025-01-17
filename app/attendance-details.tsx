@@ -92,6 +92,14 @@ const StudentRecordItem = memo(({ record }: { record: AttendanceRecord }) => (
   </View>
 ));
 
+const calculateStats = (records: RawAttendanceRecord[]) => {
+  const total = records.length;
+  const present = records.filter((record) => record.isPresent).length;
+  const absent = total - present;
+  const rate = total > 0 ? ((present / total) * 100).toFixed(1) : "0.0";
+  return { total, present, absent, rate };
+};
+
 export default function AttendanceDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -108,6 +116,14 @@ export default function AttendanceDetailsScreen() {
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMoreRecords, setHasMoreRecords] = useState(true);
   const [allRecords, setAllRecords] = useState<any[]>([]);
+
+  // Add stats state
+  const [stats, setStats] = useState({
+    total: 0,
+    present: 0,
+    absent: 0,
+    rate: "0.0",
+  });
 
   const fetchStudentBatch = async (studentIds: string[]) => {
     const missingStudents = studentIds.filter(
@@ -207,6 +223,8 @@ export default function AttendanceDetailsScreen() {
 
       // Store all records for pagination
       setAllRecords(data.records || []);
+      // Calculate stats from all records
+      setStats(calculateStats(data.records || []));
       setCurrentPage(0);
       setHasMoreRecords(true);
 
@@ -305,15 +323,33 @@ export default function AttendanceDetailsScreen() {
     );
   }
 
-  const presentCount = submission.records.filter((r) => r.isPresent).length;
-  const totalCount = submission.totalRecords;
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title} bold>
           Attendance Details
         </Text>
+      </View>
+
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue} bold>
+            {stats.present}
+          </Text>
+          <Text style={styles.statLabel}>Present</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue} bold>
+            {stats.absent}
+          </Text>
+          <Text style={styles.statLabel}>Absent</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue} bold>
+            {stats.rate}%
+          </Text>
+          <Text style={styles.statLabel}>Rate</Text>
+        </View>
       </View>
 
       <FlatList
@@ -342,13 +378,13 @@ export default function AttendanceDetailsScreen() {
                 <View style={styles.attendanceStats}>
                   <View style={styles.statItem}>
                     <Text style={styles.statValue} bold>
-                      {presentCount}/{totalCount}
+                      {stats.present}/{stats.total}
                     </Text>
                     <Text style={styles.statLabel}>Present</Text>
                   </View>
                   <View style={styles.statItem}>
                     <Text style={styles.statValue} bold>
-                      {Math.round((presentCount / totalCount) * 100)}%
+                      {stats.rate}%
                     </Text>
                     <Text style={styles.statLabel}>Rate</Text>
                   </View>
@@ -555,6 +591,14 @@ const styles = StyleSheet.create({
   },
   loadingMore: {
     padding: SPACING.md,
+    alignItems: "center",
+  },
+  statsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: SPACING.md,
+  },
+  statCard: {
     alignItems: "center",
   },
 });
