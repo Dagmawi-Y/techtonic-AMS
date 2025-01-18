@@ -308,7 +308,7 @@ const ChartSection = memo(({ report }: { report: Report }) => {
             centerLabelComponent={() => (
               <View style={styles.pieChartCenter}>
                 <Text style={styles.pieChartLabel} bold>
-                  {report.summary.averageAttendance}%
+                  {report.summary.averageAttendance.toFixed(1)}%
                 </Text>
                 <Text style={styles.pieChartSubLabel}>Average</Text>
               </View>
@@ -569,7 +569,7 @@ const ReportCard = memo(
                   color={COLORS.primary}
                 />
                 <Text style={styles.summaryValue} bold>
-                  {report.summary.averageAttendance}%
+                  {report.summary.averageAttendance.toFixed(1)}%
                 </Text>
                 <Text style={styles.summaryLabel}>Average</Text>
               </View>
