@@ -204,7 +204,7 @@ const FilterSection = memo(
         </View>
       </View>
     );
-  },
+  }
 );
 
 const ChartSection = memo(({ report }: { report: Report }) => {
@@ -218,41 +218,48 @@ const ChartSection = memo(({ report }: { report: Report }) => {
   };
 
   // Prepare data for charts with improved formatting
-  const barData = report.records.map((record, index, array) => {
-    const { month, day, year } = formatDate(record.date);
-    const prevYear = index > 0 ? formatDate(array[index - 1].date).year : year;
+  const barData = report.records
+    .slice() // Create a copy to avoid mutating original array
+    .reverse() // Reverse to show newer entries on right
+    .map((record, index, array) => {
+      const { month, day, year } = formatDate(record.date);
+      const prevYear =
+        index > 0 ? formatDate(array[index - 1].date).year : year;
 
-    return {
-      value: record.percentage,
-      label: `${month} ${day}`,
-      frontColor: COLORS.primary,
-      // Add year separator
-      yearSeparator: year !== prevYear,
-      year: year,
-    };
-  });
+      return {
+        value: Math.round(record.percentage * 10) / 10, // Round to 1 decimal place
+        label: `${month} ${day}`,
+        frontColor: COLORS.primary,
+        // Add year separator
+        yearSeparator: year !== prevYear,
+        year: year,
+      };
+    });
 
   const pieData = [
     {
-      value: report.summary.averageAttendance,
+      value: Math.round(report.summary.averageAttendance * 10) / 10,
       color: COLORS.primary,
       text: "Present",
     },
     {
-      value: 100 - report.summary.averageAttendance,
+      value: Math.round((100 - report.summary.averageAttendance) * 10) / 10,
       color: COLORS.error,
       text: "Absent",
     },
   ];
 
-  const lineData = report.records.map((record) => {
-    const { month, day } = formatDate(record.date);
-    return {
-      value: record.percentage,
-      dataPointText: `${record.percentage}%`,
-      label: `${month} ${day}`,
-    };
-  });
+  const lineData = report.records
+    .slice() // Create a copy to avoid mutating original array
+    .reverse() // Reverse to show newer entries on right
+    .map((record) => {
+      const { month, day } = formatDate(record.date);
+      return {
+        value: Math.round(record.percentage * 10) / 10, // Round to 1 decimal place
+        dataPointText: `${Math.round(record.percentage)}%`,
+        label: `${month} ${day}`,
+      };
+    });
 
   return (
     <View style={styles.chartSection}>
@@ -421,10 +428,20 @@ const generatePDFHTML = (report: Report) => {
         <h2>${report.batchName} - ${report.programName}</h2>
         
         <div class="summary">
-          <div class="summary-item">Period: ${new Date(report.startDate).toLocaleDateString()} to ${new Date(report.endDate).toLocaleDateString()}</div>
-          <div class="summary-item">Total Sessions: ${report.summary.totalSessions}</div>
-          <div class="summary-item">Total Students: ${report.summary.totalStudents}</div>
-          <div class="summary-item">Average Attendance: ${report.summary.averageAttendance.toFixed(1)}%</div>
+          <div class="summary-item">Period: ${new Date(
+            report.startDate
+          ).toLocaleDateString()} to ${new Date(
+    report.endDate
+  ).toLocaleDateString()}</div>
+          <div class="summary-item">Total Sessions: ${
+            report.summary.totalSessions
+          }</div>
+          <div class="summary-item">Total Students: ${
+            report.summary.totalStudents
+          }</div>
+          <div class="summary-item">Average Attendance: ${report.summary.averageAttendance.toFixed(
+            1
+          )}%</div>
         </div>
 
         <table>
@@ -448,7 +465,7 @@ const generatePDFHTML = (report: Report) => {
                 <td>${record.total}</td>
                 <td>${record.percentage}%</td>
               </tr>
-            `,
+            `
               )
               .join("")}
           </tbody>
@@ -473,7 +490,9 @@ const generateCSVContent = (report: Report) => {
     ["Report Summary"],
     [
       "Period",
-      `${new Date(report.startDate).toLocaleDateString()} to ${new Date(report.endDate).toLocaleDateString()}`,
+      `${new Date(report.startDate).toLocaleDateString()} to ${new Date(
+        report.endDate
+      ).toLocaleDateString()}`,
     ],
     ["Total Sessions", report.summary.totalSessions.toString()],
     ["Total Students", report.summary.totalStudents.toString()],
@@ -590,7 +609,7 @@ const ReportCard = memo(
         )}
       </View>
     );
-  },
+  }
 );
 
 const ReportSkeleton = () => {
@@ -610,7 +629,7 @@ const ReportSkeleton = () => {
             duration: 1000,
             useNativeDriver: true,
           }),
-        ]),
+        ])
       ).start();
     };
 
@@ -735,7 +754,7 @@ export default function ReportsScreen() {
 
         // Calculate attendance for this session
         const presentCount = data.records.filter(
-          (r: any) => r.isPresent,
+          (r: any) => r.isPresent
         ).length;
         const totalCount = data.records.length;
         const absentCount = totalCount - presentCount;
